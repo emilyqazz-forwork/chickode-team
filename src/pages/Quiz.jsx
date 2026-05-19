@@ -226,10 +226,17 @@ function pickCctvPool(persona, situation, lang) {
 }
 
 const TUTOR_PERSONA = {
-  default: { label: '병아리 선배 🐥', image: '/images/chick.png' },
-  racer: { label: '폭주족 선배 🏍', image: '/images/chick.png' },
-  prof: { label: '교수님 🎓', image: '/images/chick.png' },
-  church: { label: '교회오빠 ✝', image: '/images/chick.png' },
+  default: { label: '병아리 선배 🐥', image: '/images/기본튜터.png' },
+  racer: { label: '폭주족 선배 🏍', image: '/images/폭주족.png' },
+  prof: { label: '교수님 🎓', image: '/images/교수님.png' },
+  church: { label: '교회오빠 ✝', image: '/images/교회오빠.png' },
+};
+
+const CCTVCamChickImageStyle = {
+  default: undefined,
+  racer: { width: '68%', height: '68%', objectFit: 'contain' },
+  prof: { width: '68%', height: '68%', objectFit: 'contain' },
+  church: { width: '68%', height: '68%', objectFit: 'contain' },
 };
 
 function getTutorPersona(persona) {
@@ -1049,7 +1056,12 @@ export function Quiz({ t, params }) {
                       {reactionMessage}
                     </div>
                     <div className={`quiz-cctv-chick-hero ${reactionChickClass}`}>
-                      <img className="quiz-reaction-chick" src="/images/chick.png" alt="" />
+                      <img
+                        className="quiz-reaction-chick"
+                        src={tutorPersona.image}
+                        style={CCTVCamChickImageStyle[persona]}
+                        alt=""
+                      />
                     </div>
                   </div>
                   <div className="quiz-cctv-checklist">

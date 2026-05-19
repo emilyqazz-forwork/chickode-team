@@ -208,6 +208,7 @@ export function Home({ t, lang }) {
   const [progress, setProgress] = useState({});               // 챕터별 진도율 (0~100%)
   const [displayText, setDisplayText] = useState('');         // 타이핑 애니메이션 텍스트
   const [tutorialStep, setTutorialStep] = useState(null);
+  const [activeBg, setActiveBg] = useState(0);
   const navigate = useNavigate();
 
   const finishTutorial = useCallback(() => {
@@ -231,6 +232,14 @@ export function Home({ t, lang }) {
     const timer = window.setTimeout(() => startTutorial(), 600);
     return () => window.clearTimeout(timer);
   }, [startTutorial]);
+
+  useEffect(() => {
+    const bgTimer = window.setInterval(() => {
+      setActiveBg((current) => (current === 0 ? 1 : 0));
+    }, 60000);
+
+    return () => window.clearInterval(bgTimer);
+  }, []);
 
   // 챕터별 진도율 계산
   useEffect(() => {
@@ -281,8 +290,32 @@ export function Home({ t, lang }) {
   };
 
   return (
-    <div className="main-container home-page" style={{ display: 'flex' }}>
+    <div className="main-container home-page" style={{ display: 'flex', backgroundImage: 'none', overflow: 'hidden' }}>
       <style>{`
+        .home-page .home-bg-layer {
+          position: absolute;
+          inset: 0;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          transition: opacity 2s ease-in-out;
+          z-index: 0;
+          pointer-events: none;
+        }
+        .home-page .home-bg-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.35);
+          z-index: 1;
+          pointer-events: none;
+        }
+        .home-page > :not(.home-bg-layer):not(.home-bg-overlay) {
+          position: relative;
+          z-index: 2;
+        }
         .home-page .btn-link img {
           mix-blend-mode: multiply;
           transition: transform 0.25s ease, filter 0.25s ease;
@@ -338,6 +371,15 @@ export function Home({ t, lang }) {
           100% { transform: translateY(-12px) scale(1.04); }
         }
       `}</style>
+      <div
+        className="home-bg-layer"
+        style={{ backgroundImage: "url('/images/배경.png')", opacity: activeBg === 0 ? 1 : 0 }}
+      />
+      <div
+        className="home-bg-layer"
+        style={{ backgroundImage: "url('/images/배경2.png')", opacity: activeBg === 1 ? 1 : 0 }}
+      />
+      <div className="home-bg-overlay" />
       <header className="header">
         <h1 className="glow-title">{t('main_title')}</h1>
         {/* 타이핑 애니메이션 텍스트 + 깜빡이는 커서 */}
