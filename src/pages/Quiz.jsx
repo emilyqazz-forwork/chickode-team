@@ -225,11 +225,26 @@ function pickCctvPool(persona, situation, lang) { // 페르소나, 특수 상황
  return table[situation] || situ.high;
 }
 
+<<<<<<< HEAD
 const TUTOR_PERSONA = { // 대화창 및 대쉬보드 헤더용 타이틀 텍스트 및 대표 캐릭터 아바타 경로 객체
  default: { label: '병아리 선배 🐥', image: '/images/chick.png' },
  racer: { label: '폭주족 선배 🏍', image: '/images/chick.png' },
  prof: { label: '교수님 🎓', image: '/images/chick.png' },
  church: { label: '교회오빠 ✝', image: '/images/chick.png' },
+=======
+const TUTOR_PERSONA = {
+  default: { label: '병아리 선배 🐥', image: '/images/기본튜터.png' },
+  racer: { label: '폭주족 선배 🏍', image: '/images/폭주족.png' },
+  prof: { label: '교수님 🎓', image: '/images/교수님.png' },
+  church: { label: '교회오빠 ✝', image: '/images/교회오빠.png' },
+};
+
+const CCTVCamChickImageStyle = {
+  default: undefined,
+  racer: { width: '68%', height: '68%', objectFit: 'contain' },
+  prof: { width: '68%', height: '68%', objectFit: 'contain' },
+  church: { width: '68%', height: '68%', objectFit: 'contain' },
+>>>>>>> fc35c36a27af4bb6ecaddc25577c0e5ddb33872b
 };
 
 function getTutorPersona(persona) { // 키워드로 매칭되는 프로필 이미지 정보 서칭 헬퍼 함수
@@ -1043,6 +1058,7 @@ export function Quiz({ t, params }) { // 메인 페이지 풀이 및 가상 컴�
                </span>
              </header>
 
+<<<<<<< HEAD
              <div className="quiz-cctv-body">
                <div className="quiz-cctv-stack">
                  <div className="quiz-cctv-speak-col"> {/* 조는 모션 혹은 타이핑 연타 모션이 일어나는 일러스트 패널 */}
@@ -1099,3 +1115,66 @@ export function Quiz({ t, params }) { // 메인 페이지 풀이 및 가상 컴�
    </div>
  );
 }
+=======
+              <div className="quiz-cctv-body">
+                <div className="quiz-cctv-stack">
+                  <div className="quiz-cctv-speak-col">
+                    <div className={`quiz-cctv-bubble${isCctvWarnState ? ' quiz-cctv-bubble--warn' : ''}`}>
+                      {reactionMessage}
+                    </div>
+                    <div className={`quiz-cctv-chick-hero ${reactionChickClass}`}>
+                      <img
+                        className="quiz-reaction-chick"
+                        src={tutorPersona.image}
+                        style={CCTVCamChickImageStyle[persona]}
+                        alt=""
+                      />
+                    </div>
+                  </div>
+                  <div className="quiz-cctv-checklist">
+                    <div className="quiz-cctv-checklist-title">{t('cctv_title')}</div>
+                    <ul className="quiz-cctv-checklist-ul">
+                      <li className={cctvItemCodeTyping ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvItemCodeTyping ? '✓' : ''}</span>
+                        {t('cctv_coding')}
+                      </li>
+                      <li className={cctvTabOk ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvTabOk ? '✓' : ''}</span>
+                        {t('cctv_tab')}
+                      </li>
+                      <li className={cctvSteadyTyping ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvSteadyTyping ? '✓' : ''}</span>
+                        {t('cctv_steady')}
+                      </li>
+                      <li className={cctvMouseOk ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvMouseOk ? '✓' : ''}</span>
+                        {t('cctv_mouse')}
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="quiz-cctv-footer-block">
+                    <div className="quiz-cctv-footer-timer-wrap" aria-live="polite">
+                      <span className="quiz-cctv-footer-time-big">⏱ {formatStudyMmSs(studySeconds)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="quiz-cctv-open-chat"
+                      onClick={() => {
+                        bumpActivity();
+                        setIsChatOpen(true);
+                      }}
+                    >
+                      {t('cctv_open_chat')}
+                    </button>
+                    <span className="quiz-cctv-footer-tagline">{t('cctv_tagline')}</span>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+>>>>>>> fc35c36a27af4bb6ecaddc25577c0e5ddb33872b
