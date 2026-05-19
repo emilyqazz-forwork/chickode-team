@@ -14,7 +14,7 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import Anthropic from '@anthropic-ai/sdk';
 
 // API 키 로드 (.env에서 VITE_ 접두사로 안전하게 탐색)
-const anthropicApiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+const anthropicApiKey = import.meta.env.VITE_CHICKODE_CLAUDE_API_KEY;
 
 // Anthropic 인스턴스 초기화 (클라이언트 브라우저 환경 직접 통신 옵션 활성화)
 const anthropic = new Anthropic({
@@ -200,7 +200,7 @@ const CCTV_MSG_CHURCH_EN = {
   low: ["It's okay~ you made it this far", 'Come back slowly~', 'Mistakes are fine', "Let's start again together!", "Don't give up, you can do it~", "Hmm... lost focus? That's okay~"],
   tab: ['Welcome back~ were you away?', "Let's do this together~", 'YouTube can wait~ study time now', 'Thanks for coming back~', 'Come back to the tab, slowly~', 'I was waiting for you~'],
   mouse: ["Where are you going~ stay with me", "Don't let go~", 'Back to the screen, gently~', 'Put the phone down for a bit~', "Let's stay together here~"],
-  correct: ['Congrats! Correct~', 'Well done!', 'So happy~', 'Thankful~', "Amazing, let's celebrate together!"],
+  correct: ['Congrats! Correct~', 'Well done!', 'So happy~', 'Thankful~', "Amazing, let's celebrate together!"], // 👈 쉼표(,)로 정상 수정 완료!
   wrong: ["It's okay~ you'll get the next one", 'Mistakes are part of learning~', 'Think again, cheering for you~', "Don't give up~"],
 };
 
@@ -304,10 +304,12 @@ function formatStudyMmSs(totalSec) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+// ⭐ [타입 에러 교정 가드식 반영]
 function descToOpeningHint(desc) {
   const raw = String(desc || '').trim().replace(/\s+/g, ' ');
   if (!raw) return '설명에서 요구하는 조건만 한 줄로 짚어 보면 돼';
-  const firstLine = raw.split('\n')[0];
+  // 🎯 안전 가드: 데이터 파싱 도중 undefined 개체 런타임 분쇄 에러 차단
+  const firstLine = raw ? raw.split('\n')[0] : '';
   const stop = firstLine.search(/[.!?。路線](\s|$)/);
   let line = (stop >= 0 ? firstLine.slice(0, stop) : firstLine).trim();
   line = line.replace(/[.。!?！？]+$/g, '').trim();
@@ -337,6 +339,7 @@ function keywordToGuideQuestion(keyword, index) {
   return templates[index % templates.length](kw);
 }
 
+// 로컬 저장을 읽는 유틸리티
 function readStoredPersona(fallback) {
   try {
     const raw = JSON.parse(localStorage.getItem('chickodePrefs') || '{}');
@@ -349,7 +352,8 @@ function readStoredPersona(fallback) {
 export function Quiz({ t, params }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const settings = location.state || { count: 10, ratio: 50, chapter: 1, difficulty: '중' };
+  // 기본 단원 이름 및 난이도 폴백 매칭 구조
+  const settings = location.state || { count: 10, ratio: 50, chapter: 1, difficulty: '기초' };
 
   const [persona, setPersona] = useState(() => readStoredPersona(params?.persona));
   const tutorPersona = getTutorPersona(persona);
@@ -406,56 +410,77 @@ export function Quiz({ t, params }) {
     lastActivityRef.current = Date.now();
   }, []);
 
-  // ⭐ [연동 및 무한 로딩 오류 완벽 해결]
+  // ⭐ [Supabase 데이터 스펙 매칭 최종 교정] 
   useEffect(() => {
     async function fetchProblemsFromSupabase() {
       const { count, ratio, chapter, difficulty } = settings;
 
       try {
-        // 1. 단원(chapter) 데이터 타입을 명시적으로 숫자(Number) 변환하여 400 에러 차단
-        const targetChapter = Number(chapter);
-        
         let query = supabase.from('problems').select('*');
-        if (targetChapter !== 0) query = query.eq('chapter', targetChapter);
-        query = query.eq('difficulty', difficulty);
+        
+        // 1. [언어 필터] 대소문자 일치 (Java)
+        query = query.eq('language', 'Java');
+
+        // 2. [단원명 한글 맵핑] 
+        let targetUnit = '변수와 자료형';
+        if (chapter === 2) targetUnit = '연산자와 표현식';
+        if (chapter === 3) targetUnit = '조건문과 반복문';
+        query = query.eq('unit', targetUnit);
+
+        // 3. 🎯 [완벽 교정] 확실하게 분리된 code_level 숫자로 쿼리 매칭!
+        let targetLevel = 1; 
+        if (difficulty === '중' || difficulty === '중급') targetLevel = 3;
+        if (difficulty === '상' || difficulty === '고급') targetLevel = 5;
+        query = query.eq('code_level', targetLevel);
 
         const { data: pool, error } = await query;
         if (error) throw error;
 
         let finalPool = pool || [];
         
-        // 조건에 맞는 데이터 부재 시 폴백 정책 적용
+        // 조건 만족 데이터 부재 시, 해당 단원의 기본 기초 풀로 자동 완화 폴백
         if (finalPool.length === 0) {
-          let fallbackQuery = supabase.from('problems').select('*');
-          if (targetChapter !== 0) fallbackQuery = fallbackQuery.eq('chapter', targetChapter);
+          let fallbackQuery = supabase.from('problems').select('*').eq('language', 'Java').eq('unit', targetUnit);
           const { data: fallbackPool } = await fallbackQuery;
           finalPool = fallbackPool || [];
         }
 
-        // 안전 가드: 데이터가 없으면 무한 대기 차단
         if (finalPool.length === 0) {
           setQuizList([]);
           return;
         }
 
-        // 2. 가중치 기반 문항 분배 연산
+        // 4. 🎯 [핵심 비율 및 문제 개수 생성 알고리즘 예외 처리 보완 가드]
         const objCount = Math.round(count * (ratio / 100));
         const subCount = count - objCount;
 
+        // DB 특성을 고려하여 객관식과 코딩 문제를 엄격하게 분리
         const objPool = finalPool.filter((p) => p.type === 'ox' || p.type === 'multiple').sort(() => 0.5 - Math.random());
-        const subPool = finalPool.filter((p) => p.type === 'coding').sort(() => 0.5 - Math.random());
+        const subPool = finalPool.filter((p) => p.template_code || p.type === 'coding').sort(() => 0.5 - Math.random());
 
         const mergedList = [];
+        
+        // 객관식 풀에 데이터가 존재할 때만 분배 삽입
         if (objPool.length > 0) {
           for (let i = 0; i < objCount; i++) mergedList.push(objPool[i % objPool.length]);
         }
+        
+        // 💡 중요: 만약 DB에 객관식 문제가 0개라면, 지지부진하게 뻗지 않고
+        // 퀴즈 총 요구 수량(count)만큼을 주관식 코딩 데이터(subPool)로 강제 전량 치환 수렴합니다!
         if (subPool.length > 0) {
-          for (let i = 0; i < subCount; i++) mergedList.push(subPool[i % subPool.length]);
+          const actualNeededSubCount = objPool.length === 0 ? count : subCount;
+          for (let i = 0; i < actualNeededSubCount; i++) mergedList.push(subPool[i % subPool.length]);
         }
 
+        // 5. 🎯 [UI 공간 데이터 바인딩 직결 매핑]
+        // 받아온 DB 원본 레코드를 프론트엔드 컴포넌트 렌더링 규격 속성 공간에 주입합니다.
         const mappedList = mergedList.map(p => ({
           ...p,
-          expectedExample: p.expected_example
+          title: p.title || '기초 코딩 역량 테스트',
+          desc: p.description, // DB description -> UI desc 매핑 
+          difficulty: p.code_level === 1 ? '기초' : p.code_level === 5 ? '고급' : '중급', 
+          template: p.template_code || '', // DB template_code -> 에디터 template 매핑
+          expectedExample: p.expected_example || p.answer || ''
         })).sort(() => 0.5 - Math.random());
 
         setQuizList(mappedList);
@@ -468,6 +493,7 @@ export function Quiz({ t, params }) {
     fetchProblemsFromSupabase();
   }, [settings]);
 
+  // 문제 인덱스 스위칭 훅
   useEffect(() => {
     if (quizList.length === 0) return;
     const currentProblem = quizList[currentIndex];
@@ -564,7 +590,6 @@ export function Quiz({ t, params }) {
   const addTermLog = (msg, type = 'system') =>
     setTermOutput((prev) => [...prev, { type, text: `> ${msg}` }]);
 
-  // ⭐ [연동 완료] Claude 4.6 Sonnet 실시간 대화 추론 제어 파트
   const handleSendChat = async (message = null, chipKeyword = null) => {
     const text = message !== undefined && message !== null && String(message).trim() !== ''
         ? String(message).trim()
@@ -597,7 +622,7 @@ export function Quiz({ t, params }) {
       } else if (persona === 'prof') {
         systemInstruction += `\n4. [말투 페르소나: 대학교 교수님] 매우 정중하고 학술적이며 표준 명조체 느낌의 문체를 쓴다. 격식 있는 존댓말을 사용하며 "학습자님", "분석해 보십시오", "개념의 정의"를 강조하며 체계적으로 지도하라.`;
       } else if (persona === 'church') {
-        systemInstruction += `\n4. [말투 페르소나: 다정한 교회 오빠] 한없이 부드럽고 따뜻하며 무한 칭찬과 응원을 아끼지 않는다. "~해요", "괜찮아요 😊", "기도할게요" 느낌의 스윗한 어조로 사용자의 자존감을 극대화해 주어라.`;
+        systemInstruction += `\n4. [말투 페르소나: 다정한 교회 오빠] 한없이 부드럽고 따뜻하며 무한 칭찬 and 응원을 아끼지 않는다. "~해요", "괜찮아요 😊", "기도할게요" 느낌의 스윗한 어조로 사용자의 자존감을 극대화해 주어라.`;
       } else {
         systemInstruction += `\n4. [말투 페르소나: 기본 병아리 선배] 귀엽고 친근한 선배다. 문장 끝마다 "~삐약!", "~했어 삐약?"을 반드시 붙여 귀여운 메카니즘을 극대화하라.`;
       }
@@ -672,7 +697,7 @@ export function Quiz({ t, params }) {
         setResultStatus('결과: 🎉 정답이야!');
         setResultColor('#55ff55');
         setChatHistory((prev) => [...prev, { role: 'bot', text: '정답! 아주 잘했어 삐약! 👏' }]);
-        setIsChatOpen(true); // 정답 맞췄을 때 챗봇 반응 피드백을 노출하기 위해 강제 오픈
+        setIsChatOpen(true); 
         setCctvResultTone('correct');
       } else {
         addTermLog('Result: X 오답입니다!', 'error');
@@ -682,7 +707,7 @@ export function Quiz({ t, params }) {
           ...prev,
           { role: 'bot', text: '아쉽지만 오답이야... 다음 번엔 맞출 수 있을 거야! 🐥' },
         ]);
-        setIsChatOpen(true); // 오답 피드백 역시 시각적으로 즉시 보이도록 처리
+        setIsChatOpen(true); 
         setCctvResultTone('wrong');
       }
       cctvResultClearTimeoutRef.current = window.setTimeout(() => {
@@ -692,7 +717,6 @@ export function Quiz({ t, params }) {
     }, 500);
   };
 
-  // 가드식: 데이터 로딩 및 공백 예외 예방
   if (!quizList || quizList.length === 0) {
     return (
       <div style={{ color: 'white', padding: '50px', background: '#2d1a12', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
