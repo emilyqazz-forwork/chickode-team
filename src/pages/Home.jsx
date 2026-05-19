@@ -312,9 +312,12 @@ export function Home({ t, lang }) {
           z-index: 1;
           pointer-events: none;
         }
-        .home-page > :not(.home-bg-layer):not(.home-bg-overlay) {
+        .home-page > :not(.home-bg-layer):not(.home-bg-overlay):not(.modal-overlay) {
           position: relative;
           z-index: 2;
+        }
+        .home-page > .modal-overlay {
+          z-index: 100;
         }
         .home-page .btn-link img {
           mix-blend-mode: multiply;
