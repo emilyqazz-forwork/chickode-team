@@ -1,5 +1,13 @@
 // Home.jsx - 메인 홈 화면 로비이자 단계별 학습 셋업 모달을 순차 제어하는 총괄 관제 파일
-// 1. 
+// 1. 언어별 챕터 설정
+// 2. TUTORIAL_STEPS
+// 3. 로컬스토리지 유틸 함수 (튜토리얼 봤는지 확인/저장)
+// 4. HomeCoachmark 컴포넌트 (튜토리얼 말풍선)
+// 5. Home 메인 컴포넌트 (홈 화면 본체)
+// 6. LangModal (언어 선택 모달) - selectedLang
+// 7. LevelModal (난이도 선택 모달) - selectedLevel
+// 8. ChapterModal (단원 선택 모달) - selectedChapter
+// 9. QuizSettingModal (문항 설정 모달) - settings
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -71,7 +79,32 @@ const JAVA_CHAPTERS = {
       units: ["java_mid_c4_u1", "java_mid_c4_u2", "java_mid_c4_u3", "java_mid_c4_u4"]
     }
   ],
-  adv: [] // 향후 자바 고급 파트 확장용 공간
+  adv: [
+    {
+      id: "java_adv_c1",
+      title: "1단원: 제네릭과 모던 자바",
+      description: "타입 안정성을 극대화하는 제네릭과 모던 자바의 꽃인 람다식, 스트림 API를 정복합니다.",
+      icon: "⚡",
+      units: ["java_adv_c1_u1", "java_adv_c1_u2", "java_adv_c1_u3", "java_adv_c1_u4"]
+      // u1: 제네릭스(Generics), u2: 함수형 인터페이스와 람다식, u3: 스트림 API, u4: Optional 클래스
+    },
+    {
+      id: "java_adv_c2",
+      title: "2단원: 멀티 스레드와 JVM 구조",
+      description: "병렬 처리를 위한 동시성 프로그래밍 스레드 동기화 및 JVM 메모리 영역을 제어합니다.",
+      icon: "⚙️",
+      units: ["java_adv_c2_u1", "java_adv_c2_u2", "java_adv_c2_u3", "java_adv_c2_u4"]
+      // u1: 멀티 스레드와 동시성, u2: 스레드 동기화, u3: JVM 메모리 구조, u4: 가비지 컬렉션(GC)
+    },
+    {
+      id: "java_adv_c3",
+      title: "3단원: 입출력 및 네트워크 소켓",
+      description: "시스템 스트림 기반의 파일 입출력(I/O) 데이터 처리와 소켓 기반 네트워킹을 학습합니다.",
+      icon: "🌐",
+      units: ["java_adv_c3_u1", "java_adv_c3_u2"]
+      // u1: 입출력 스트림(I/O), u2: 네트워크 소켓 프로그래밍
+    }
+  ]
 };
 
 // ========================================================
@@ -713,7 +746,7 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
               className="chapter-item"
               onClick={() => onSelect(ch.id)}
             >
-              <span className="ch-title">{t(ch.key)}</span>
+              <span className="ch-title">{t(ch.title)}</span>
               {/* 챕터 정면에 바짝 붙어있는 미니 게이지 바 컴포넌트: 사용자가 쌓아놓은 진도 퍼센트(`0~100%`) 만큼 가로 채우기 가동 */}
               <div className="progress-bar-container">
                 <div className="progress-bar" style={{ width: `${progress[ch.id] || 0}%` }}></div>
