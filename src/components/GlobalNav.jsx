@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { savePreferences } from '../state/i18n';
+import { settingsButtonRef } from '../state/tutorial-refs';
 
 export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -11,9 +12,17 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
   const [editMode, setEditMode] = useState(false);
   const [newName, setNewName] = useState('');
   const navRef = useRef(null);
+  const settingsBtnRef = useRef(null);
   const location = useLocation();
   const bgmRef = useRef(null);
   const userStartedRef = useRef(false);
+
+  useEffect(() => {
+    settingsButtonRef.current = settingsBtnRef.current;
+    return () => {
+      settingsButtonRef.current = null;
+    };
+  });
 
   const safeParams = {
     ...params,
@@ -147,7 +156,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
         </div>
         <ul className="nav-links">
           <li><Link to="/">{t('nav_home')}</Link></li>
-          <li><Link to="/quiz">문제풀기</Link></li>
+          <li><Link to="/quiz">{t('btn_quiz')}</Link></li>
           <li><Link to="/note">{t('nav_note')}</Link></li>
           <li><Link to="/pattern">{t('nav_pattern') || "패턴분석"}</Link></li>
           <li><Link to="/minigame">{t('nav_minigame')}</Link></li>
@@ -157,7 +166,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
               onClick={(e) => { e.preventDefault(); onOpenSettings(); }}
               style={{ cursor: 'pointer' }}
             >{/* nav link 스타일을 그대로 타게 함 */}
-              설정
+              {t('btn_setting')}
             </a>
           </li>
         </ul>
@@ -171,13 +180,114 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
                 from { transform: rotate(0deg); }
                 to { transform: rotate(360deg); }
               }
+              .home-top-actions {
+                display: flex;
+                justify-content: flex-end;
+              }
+              .home-settings-wrap {
+                display: grid;
+                grid-template-columns: auto auto;
+                grid-template-rows: auto auto;
+                column-gap: 8px;
+                row-gap: 2px;
+                align-items: center;
+              }
+              .home-settings-btn {
+                grid-column: 1;
+                grid-row: 1;
+                align-self: center;
+              }
+              .home-login-action {
+                grid-column: 2;
+                grid-row: 1;
+                align-self: center;
+                flex-shrink: 0;
+              }
+              .home-settings-label {
+                grid-column: 1;
+                grid-row: 2;
+                justify-self: center;
+                margin-top: -2px;
+              }
+              .home-settings-btn {
+                display: block;
+                background: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                width: auto !important;
+                height: auto !important;
+                padding: 0 !important;
+                line-height: 0;
+                cursor: pointer;
+              }
+              .home-settings-btn:hover,
+              .home-settings-btn:active {
+                transform: none !important;
+              }
+              .home-settings-label {
+                font-family: 'Jua', sans-serif;
+                font-size: 15px;
+                font-weight: 700;
+                color: #3e2723;
+                text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8);
+                pointer-events: none;
+                white-space: nowrap;
+                line-height: 1;
+                margin: 0;
+              }
+              .home-settings-wrap:hover .home-settings-label {
+                text-shadow:
+                  0 0 8px rgba(255, 220, 100, 0.95),
+                  0 0 16px rgba(255, 193, 7, 0.5),
+                  0 1px 0 rgba(255, 248, 216, 0.8);
+              }
+              .home-settings-wrap:active .home-settings-label {
+                text-shadow:
+                  0 0 10px rgba(255, 235, 140, 1),
+                  0 0 20px rgba(255, 200, 60, 0.85),
+                  0 1px 0 rgba(255, 248, 216, 0.8);
+              }
+              .home-settings-img {
+                width: 96px;
+                height: auto;
+                max-height: 96px;
+                object-fit: contain;
+                object-position: center bottom;
+                mix-blend-mode: multiply;
+                transition: transform 0.25s ease, filter 0.25s ease;
+                display: block;
+                margin: 18px 0 -2px 0;
+                vertical-align: bottom;
+              }
+              .home-settings-wrap:hover .home-settings-img {
+                filter:
+                  drop-shadow(0 0 6px rgba(255, 235, 130, 1))
+                  drop-shadow(0 0 14px rgba(255, 210, 70, 0.9))
+                  drop-shadow(0 0 26px rgba(255, 193, 7, 0.55));
+              }
+              .home-settings-wrap:active .home-settings-img {
+                transform: scale(1.08);
+                filter:
+                  drop-shadow(0 0 8px rgba(255, 245, 170, 1))
+                  drop-shadow(0 0 18px rgba(255, 220, 90, 1))
+                  drop-shadow(0 0 34px rgba(255, 193, 7, 0.8));
+              }
             `}</style>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button id="globalSettingsBtn" className="settings-btn" title="Settings" onClick={onOpenSettings}>⚙️</button>
+            <div className="home-top-actions">
+              <div className="home-settings-wrap">
+                <button
+                  ref={settingsBtnRef}
+                  id="globalSettingsBtn"
+                  className="settings-btn home-settings-btn"
+                  title={t('btn_setting')}
+                  onClick={onOpenSettings}
+                >
+                  <img src="/images/home_settings.png" alt="" className="home-settings-img" />
+                </button>
 
               {user ? (
-                <div style={{ position: 'relative' }}>
+                <div className="home-login-action" style={{ position: 'relative' }}>
                   <div
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
                     style={{
@@ -266,6 +376,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
                 </div>
               ) : (
                 <div
+                  className="home-login-action"
                   onClick={onOpenAuth}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
@@ -279,13 +390,17 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
                     alt="게스트"
                     style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid #5d4037' }}
                   />
-                  <span style={{ fontSize: 13, fontWeight: 900, color: '#5d4037' }}>로그인/회원가입</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: '#5d4037' }}>{t('btn_login')}</span>
                 </div>
               )}
+
+                <span className="home-settings-label">{t('btn_setting')}</span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <img
+                id="homeBgmBtn"
                 src="/images/LP.png"
                 alt="BGM"
                 width={80}
@@ -307,7 +422,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
                 }}
               />
               <div style={{ fontSize: 12, fontWeight: 900, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.75)' }}>
-                {safeParams.bgmTrack === 'pixel' ? '🎵 픽셀 로파이 st.' : '🎵 따뜻한 오두막 감성 st'}
+                {`🎵 ${safeParams.bgmTrack === 'pixel' ? t('bgm_pixel') : t('bgm_cabin')}`}
               </div>
             </div>
           </div>

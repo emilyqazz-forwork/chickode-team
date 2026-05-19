@@ -75,6 +75,58 @@ const CCTV_MSG_WRONG = [
   '괜찮아, 다음엔 맞출 수 있어!',
 ];
 
+const CCTV_MSG_HIGH_EN = [
+  "You're doing great! Keep it up!",
+  'Nice work! 🐥',
+  "That's the spirit!",
+  'Stay focused!',
+  "You're on fire!",
+  'Proud of you~',
+];
+const CCTV_MSG_MID_EN = [
+  'Stay focused! 🐥',
+  'Getting a bit distracted?',
+  "Don't lose focus!",
+  'I can see you daydreaming~',
+  'Almost there, keep going!',
+  'Focus is slipping...',
+];
+const CCTV_MSG_LOW_EN = [
+  'Hey! What are you doing?!',
+  '⚠️ Warning! Slacking detected!',
+  "You'll get them all wrong!",
+  'Focus RIGHT NOW!',
+  "Don't forget I'm watching!",
+  'You came here to study, right?!',
+];
+const CCTV_MSG_TAB_EN = [
+  'Where did you go? 👀',
+  'I know you watched YouTube!',
+  'Tab switch detected... suspicious!',
+  'Did you ask another AI? 🐥',
+  'Caught you! Focus dropping!',
+  'Come back here~ 🐥',
+];
+const CCTV_MSG_MOUSE_EN = [
+  'Trying to escape? 🐥',
+  'Mouse escape detected! 👀',
+  'Where are you going?!',
+  'Why is your hand over there?',
+  'I know you want your phone!',
+];
+const CCTV_MSG_CORRECT_EN = [
+  "Correct! That's my student!",
+  'Perfect! 🎉',
+  'Amazing! You got it!',
+  'Worth watching you~ 🐥',
+];
+const CCTV_MSG_WRONG_EN = [
+  'Aww... think again!',
+  "Wrong! Should've focused more!",
+  'Need more study on this~',
+  "It's okay, next time!",
+];
+
 const CCTV_MSG_BY_SITUATION = {
   high: CCTV_MSG_HIGH,
   mid: CCTV_MSG_MID,
@@ -83,6 +135,16 @@ const CCTV_MSG_BY_SITUATION = {
   mouse: CCTV_MSG_MOUSE,
   correct: CCTV_MSG_CORRECT,
   wrong: CCTV_MSG_WRONG,
+};
+
+const CCTV_MSG_BY_SITUATION_EN = {
+  high: CCTV_MSG_HIGH_EN,
+  mid: CCTV_MSG_MID_EN,
+  low: CCTV_MSG_LOW_EN,
+  tab: CCTV_MSG_TAB_EN,
+  mouse: CCTV_MSG_MOUSE_EN,
+  correct: CCTV_MSG_CORRECT_EN,
+  wrong: CCTV_MSG_WRONG_EN,
 };
 
 /** CHICK CAM — 페르소나별 멘트 */
@@ -114,6 +176,34 @@ const CCTV_MSG_CHURCH = {
   wrong: ['괜찮아요~ 다음엔 맞출 수 있어요', '실수는 배움의 한 조각이에요~', '다시 생각해봐요, 응원할게요~', '힘내요, 포기하지 마요~'],
 };
 
+const CCTV_MSG_RACER_EN = {
+  high: ['Not bad!', 'Keep that pace!', 'You got this!', 'Stay locked in!', 'Almost done!', 'Nice, keep going!'],
+  mid: ['Focus!!', 'Quit slacking!', 'Faster faster!', 'Hands on keyboard!', 'Switching tabs again?!', 'One beat at a time!'],
+  low: ['What are you doing?!', 'Focus is gone!', "You'll blow it all!", 'Back to the screen!', 'You came to study?!', 'Get back now!'],
+  tab: ['Where did you go!', 'Close that tab!', 'No YouTube!', 'Slacking again?!', 'Come back now!', "I'm watching!"],
+  mouse: ['Running away?', 'Where are your hands!', 'Off screen!', 'Phone down!', 'Stay in your seat!'],
+  correct: ['Yes! Correct!', "Let's go!", "That's it!", 'Knew it!', 'Pass!'],
+  wrong: ['Wrong. Again!', 'So close, once more!', "You weren't focused!", 'Try again!'],
+};
+const CCTV_MSG_PROF_EN = {
+  high: ['Your engagement is satisfactory.', 'Good progress.', 'Please maintain this pace.', 'Appropriate study attitude.', 'Excellent focus.', 'This pace is commendable.'],
+  mid: ['Learning efficiency is declining.', 'Please maintain focus.', 'Mild distraction observed.', 'Recalibration needed for goals.', 'Please find your rhythm.', 'Attention is diverging.'],
+  low: ['Failed to maintain focus.', 'Session at risk level.', 'Correct your attitude immediately.', 'Repeated disengagement.', 'Drifting from learning goals.', 'Warning: minimum focus level.'],
+  tab: ['Tab switch detected.', 'Appears you left the task.', 'Please return to study.', 'Inappropriate multitasking.', 'Return to the lesson screen.', 'Caution: tab departure.'],
+  mouse: ['Pointer departure confirmed.', 'Left the work area.', 'Check input device position.', 'Keep pointer in study zone.', 'Repeated departure.'],
+  correct: ['Correct. Excellent.', 'Very accurate solution.', 'Concept understanding confirmed.', 'Outstanding result.', 'Please continue.'],
+  wrong: ['Incorrect. Review needed.', 'Error in solution.', 'Please verify concept.', 'Check your logic.'],
+};
+const CCTV_MSG_CHURCH_EN = {
+  high: ["You're doing well~", 'You can do it!', "Let's do this together!", 'So good~', 'God is watching~ proud of you', 'Keep going like this~'],
+  mid: ['Just a little more~', "It's okay, focus again~", "Let's take it slow together~", 'Set aside distractions for a bit~', 'Cheer up, almost there~', 'Pray and focus~'],
+  low: ["It's okay~ you made it this far", 'Come back slowly~', 'Mistakes are fine', "Let's start again together!", "Don't give up, you can do it~", "Hmm... lost focus? That's okay~"],
+  tab: ['Welcome back~ were you away?', "Let's do this together~", 'YouTube can wait~ study time now', 'Thanks for coming back~', 'Come back to the tab, slowly~', 'I was waiting for you~'],
+  mouse: ["Where are you going~ stay with me", "Don't let go~", 'Back to the screen, gently~', 'Put the phone down for a bit~', "Let's stay together here~"],
+  correct: ['Congrats! Correct~', 'Well done!', 'So happy~', 'Thankful~', "Amazing, let's celebrate together!"],
+  wrong: ["It's okay~ you'll get the next one", 'Mistakes are part of learning~', 'Think again, cheering for you~', "Don't give up~"],
+};
+
 const CCTV_MSG_BY_PERSONA = {
   default: CCTV_MSG_BY_SITUATION,
   racer: CCTV_MSG_RACER,
@@ -121,11 +211,40 @@ const CCTV_MSG_BY_PERSONA = {
   church: CCTV_MSG_CHURCH,
 };
 
+const CCTV_MSG_BY_PERSONA_EN = {
+  default: CCTV_MSG_BY_SITUATION_EN,
+  racer: CCTV_MSG_RACER_EN,
+  prof: CCTV_MSG_PROF_EN,
+  church: CCTV_MSG_CHURCH_EN,
+};
+
+function getCctvSituationMessages(lang) {
+  return lang === 'en' ? CCTV_MSG_BY_SITUATION_EN : CCTV_MSG_BY_SITUATION;
+}
+
+function getCctvPersonaTable(persona, lang) {
+  const map = lang === 'en' ? CCTV_MSG_BY_PERSONA_EN : CCTV_MSG_BY_PERSONA;
+  return map[persona] || map.default;
+}
+
+function pickCctvPool(persona, situation, lang) {
+  const situ = getCctvSituationMessages(lang);
+  const table = getCctvPersonaTable(persona, lang);
+  return table[situation] || situ.high;
+}
+
 const TUTOR_PERSONA = {
-  default: { label: '병아리 선배 🐥', image: '/images/chick.png' },
-  racer: { label: '폭주족 선배 🏍', image: '/images/chick.png' },
-  prof: { label: '교수님 🎓', image: '/images/chick.png' },
-  church: { label: '교회오빠 ✝', image: '/images/chick.png' },
+  default: { label: '병아리 선배 🐥', image: '/images/기본튜터.png' },
+  racer: { label: '폭주족 선배 🏍', image: '/images/폭주족.png' },
+  prof: { label: '교수님 🎓', image: '/images/교수님.png' },
+  church: { label: '교회오빠 ✝', image: '/images/교회오빠.png' },
+};
+
+const CCTVCamChickImageStyle = {
+  default: undefined,
+  racer: { width: '68%', height: '68%', objectFit: 'contain' },
+  prof: { width: '68%', height: '68%', objectFit: 'contain' },
+  church: { width: '68%', height: '68%', objectFit: 'contain' },
 };
 
 function getTutorPersona(persona) {
@@ -189,7 +308,7 @@ function descToOpeningHint(desc) {
   const raw = String(desc || '').trim().replace(/\s+/g, ' ');
   if (!raw) return '설명에서 요구하는 조건만 한 줄로 짚어 보면 돼';
   const firstLine = raw.split('\n')[0];
-  const stop = firstLine.search(/[.!?。！？](\s|$)/);
+  const stop = firstLine.search(/[.!?。路線](\s|$)/);
   let line = (stop >= 0 ? firstLine.slice(0, stop) : firstLine).trim();
   line = line.replace(/[.。!?！？]+$/g, '').trim();
   if (line.length > 88) line = `${line.slice(0, 85).trim()}…`;
@@ -216,6 +335,15 @@ function keywordToGuideQuestion(keyword, index) {
     (k) => `${k}는 어떻게 써?`,
   ];
   return templates[index % templates.length](kw);
+}
+
+function readStoredPersona(fallback) {
+  try {
+    const raw = JSON.parse(localStorage.getItem('chickodePrefs') || '{}');
+    return raw.persona ?? fallback ?? 'default';
+  } catch {
+    return fallback ?? 'default';
+  }
 }
 
 export function Quiz({ t, params }) {
@@ -255,10 +383,10 @@ export function Quiz({ t, params }) {
   const [chatHistory, setChatHistory] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const lang = params?.lang ?? 'ko';
   const [reactionMessage, setReactionMessage] = useState(() => {
-    const p = readStoredPersona('default');
-    const table = CCTV_MSG_BY_PERSONA[p] || CCTV_MSG_BY_PERSONA.default;
-    return pickRandom(table.high || CCTV_MSG_HIGH);
+    const p = readStoredPersona(params?.persona ?? 'default');
+    return pickRandom(pickCctvPool(p, 'high', params?.lang ?? 'ko'));
   });
   const [studySeconds, setStudySeconds] = useState(0);
   const [isEditorTyping, setIsEditorTyping] = useState(false);
@@ -278,13 +406,13 @@ export function Quiz({ t, params }) {
     lastActivityRef.current = Date.now();
   }, []);
 
-  // ⭐ [연동 및 오류 완벽 수정] 
+  // ⭐ [연동 및 무한 로딩 오류 완벽 해결]
   useEffect(() => {
     async function fetchProblemsFromSupabase() {
       const { count, ratio, chapter, difficulty } = settings;
 
       try {
-        // 1. 단원(chapter) 데이터 타입을 명시적으로 숫자(Number) 변환하여 400 에러 원천 차단
+        // 1. 단원(chapter) 데이터 타입을 명시적으로 숫자(Number) 변환하여 400 에러 차단
         const targetChapter = Number(chapter);
         
         let query = supabase.from('problems').select('*');
@@ -296,7 +424,7 @@ export function Quiz({ t, params }) {
 
         let finalPool = pool || [];
         
-        // 조건에 맞는 풀이 부재 시 폴백 정책 적용
+        // 조건에 맞는 데이터 부재 시 폴백 정책 적용
         if (finalPool.length === 0) {
           let fallbackQuery = supabase.from('problems').select('*');
           if (targetChapter !== 0) fallbackQuery = fallbackQuery.eq('chapter', targetChapter);
@@ -304,13 +432,13 @@ export function Quiz({ t, params }) {
           finalPool = fallbackPool || [];
         }
 
-        // ⭐ 안전장치: 결과가 아예 없으면 빈 배열을 세팅해 무한 로딩(Cannot read length)을 방지
+        // 안전 가드: 데이터가 없으면 무한 대기 차단
         if (finalPool.length === 0) {
           setQuizList([]);
           return;
         }
 
-        // 2. 주관식(coding) 및 객관식(multiple/ox) 가중치 분배 연산
+        // 2. 가중치 기반 문항 분배 연산
         const objCount = Math.round(count * (ratio / 100));
         const subCount = count - objCount;
 
@@ -325,7 +453,6 @@ export function Quiz({ t, params }) {
           for (let i = 0; i < subCount; i++) mergedList.push(subPool[i % subPool.length]);
         }
 
-        // PostgreSQL 스네이크케이스 컬럼명을 리액트 카멜케이스 구조와 무결성 매핑 보장
         const mappedList = mergedList.map(p => ({
           ...p,
           expectedExample: p.expected_example
@@ -334,7 +461,7 @@ export function Quiz({ t, params }) {
         setQuizList(mappedList);
       } catch (err) {
         console.error("Supabase 로드 실패:", err.message);
-        setQuizList([]); // 에러 시 에러 탈출구 마련
+        setQuizList([]); 
       }
     }
 
@@ -419,13 +546,12 @@ export function Quiz({ t, params }) {
 
   useEffect(() => {
     if (isChatOpen) return;
-    const byPersona = CCTV_MSG_BY_PERSONA[persona] || CCTV_MSG_BY_PERSONA.default;
-    const pool = byPersona[cctvBubbleSituation] || CCTV_MSG_HIGH;
+    const pool = pickCctvPool(persona, cctvBubbleSituation, lang);
     const tick = () => setReactionMessage(pickRandom(pool));
     tick();
     const id = window.setInterval(tick, 15000);
     return () => clearInterval(id);
-  }, [isChatOpen, cctvBubbleSituation, persona]);
+  }, [isChatOpen, cctvBubbleSituation, persona, lang]);
 
   useEffect(() => {
     setIsEditorTyping(false);
@@ -435,6 +561,10 @@ export function Quiz({ t, params }) {
     }
   }, [currentIndex, isChatOpen, quizList.length]);
 
+  const addTermLog = (msg, type = 'system') =>
+    setTermOutput((prev) => [...prev, { type, text: `> ${msg}` }]);
+
+  // ⭐ [연동 완료] Claude 4.6 Sonnet 실시간 대화 추론 제어 파트
   const handleSendChat = async (message = null, chipKeyword = null) => {
     const text = message !== undefined && message !== null && String(message).trim() !== ''
         ? String(message).trim()
@@ -463,11 +593,11 @@ export function Quiz({ t, params }) {
 3. 마크다운 형식을 사용하여 읽기 편하게 강조하라.`;
 
       if (persona === 'racer') {
-        systemInstruction += `\n4. [말투 페르소나: 폭주족 선배] 성격이 급하고 와일드하며열정적이다. 반말을 사용하며 "박아라", "달려라", "가자!" 같은 레이싱 용어를 섞어서 터프하지만 유쾌하게 힌트를 줘라.`;
+        systemInstruction += `\n4. [말투 페르소나: 폭주족 선배] 성격이 급하고 와일드하며 열정적이다. 반말을 사용하며 "박아라", "달려라", "가자!" 같은 레이싱 용어를 섞어서 터프하지만 유쾌하게 힌트를 줘라.`;
       } else if (persona === 'prof') {
         systemInstruction += `\n4. [말투 페르소나: 대학교 교수님] 매우 정중하고 학술적이며 표준 명조체 느낌의 문체를 쓴다. 격식 있는 존댓말을 사용하며 "학습자님", "분석해 보십시오", "개념의 정의"를 강조하며 체계적으로 지도하라.`;
       } else if (persona === 'church') {
-        systemInstruction += `\n4. [말투 페7소나: 다정한 교회 오빠] 한없이 부드럽고 따뜻하며 무한 칭찬과 응원을 아끼지 않는다. "~해요", "괜찮아요 😊", "기도할게요" 느낌의 스윗한 어조로 사용자의 자존감을 극대화해 주어라.`;
+        systemInstruction += `\n4. [말투 페르소나: 다정한 교회 오빠] 한없이 부드럽고 따뜻하며 무한 칭찬과 응원을 아끼지 않는다. "~해요", "괜찮아요 😊", "기도할게요" 느낌의 스윗한 어조로 사용자의 자존감을 극대화해 주어라.`;
       } else {
         systemInstruction += `\n4. [말투 페르소나: 기본 병아리 선배] 귀엽고 친근한 선배다. 문장 끝마다 "~삐약!", "~했어 삐약?"을 반드시 붙여 귀여운 메카니즘을 극대화하라.`;
       }
@@ -487,9 +617,9 @@ export function Quiz({ t, params }) {
       ]);
 
     } catch (err) {
-      console.error("Claude API 연동 에러 -> 오프라인 모드로 자동 스위칭:", err);
+      console.error("Claude API 연동 에러 -> 폴백 가동:", err);
       const kws = currentProblem?.keywords || [];
-      const mock = `지금 네트워크 환경이나 API 쿼터가 불안정해서 삐약이가 직접 자바 표준 명세를 들고왔어! 문제 「${currentProblem?.title}」의 핵심 부품인 「${kws[0] || '기초 용어'}」 개념부터 차근차근 다시 타이핑 해볼까? (오프라인 폴백 모드)`;
+      const mock = `지금 네트워크 환경이 잠시 불안정해서 삐약이가 직접 비밀 명세를 꺼내왔어! 문제 「${currentProblem?.title}」의 핵심 부품인 「${kws[0] || '기초 용어'}」에 초점을 맞춰 코드를 고쳐볼까? (오프라인 모드)`;
       setChatHistory((prev) => [...prev.filter((m) => !m.thinking), { role: 'bot', text: mock }]);
     }
   };
@@ -542,6 +672,7 @@ export function Quiz({ t, params }) {
         setResultStatus('결과: 🎉 정답이야!');
         setResultColor('#55ff55');
         setChatHistory((prev) => [...prev, { role: 'bot', text: '정답! 아주 잘했어 삐약! 👏' }]);
+        setIsChatOpen(true); // 정답 맞췄을 때 챗봇 반응 피드백을 노출하기 위해 강제 오픈
         setCctvResultTone('correct');
       } else {
         addTermLog('Result: X 오답입니다!', 'error');
@@ -551,6 +682,7 @@ export function Quiz({ t, params }) {
           ...prev,
           { role: 'bot', text: '아쉽지만 오답이야... 다음 번엔 맞출 수 있을 거야! 🐥' },
         ]);
+        setIsChatOpen(true); // 오답 피드백 역시 시각적으로 즉시 보이도록 처리
         setCctvResultTone('wrong');
       }
       cctvResultClearTimeoutRef.current = window.setTimeout(() => {
@@ -560,7 +692,7 @@ export function Quiz({ t, params }) {
     }, 500);
   };
 
-  // ⭐ 예외 처리 가드: 데이터가 없거나 로딩 중일 때 렌더링 에러 차단
+  // 가드식: 데이터 로딩 및 공백 예외 예방
   if (!quizList || quizList.length === 0) {
     return (
       <div style={{ color: 'white', padding: '50px', background: '#2d1a12', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
@@ -634,7 +766,6 @@ export function Quiz({ t, params }) {
       ) : (
         <div className="mcq-container">
           <div className="mcq-options">
-            {/* 데이터 유실 방지용 방어적 옵션 렌더링 */}
             {(currentProblem.options || []).map((opt, i) => (
               <button
                 key={i}
@@ -774,24 +905,41 @@ export function Quiz({ t, params }) {
                   <div className="quiz-cctv-speak-col">
                     <div className={`quiz-cctv-bubble${isCctvWarnState ? ' quiz-cctv-bubble--warn' : ''}`}>{reactionMessage}</div>
                     <div className={`quiz-cctv-chick-hero ${reactionChickClass}`}>
-                      <img className="quiz-reaction-chick" src="/images/chick.png" alt="" />
+                      <img
+                        className="quiz-reaction-chick"
+                        src={tutorPersona.image}
+                        style={CCTVCamChickImageStyle[persona]}
+                        alt=""
+                      />
                     </div>
                   </div>
                   <div className="quiz-cctv-checklist">
-                    <div className="quiz-cctv-checklist-title">감시 항목</div>
+                    <div className="quiz-cctv-checklist-title">{t('cctv_title')}</div>
                     <ul className="quiz-cctv-checklist-ul">
-                      <li className={cctvItemCodeTyping ? 'checked' : ''}><span className="quiz-cctv-check">{cctvItemCodeTyping ? '✓' : ''}</span>코드 작성 중</li>
-                      <li className={cctvTabOk ? 'checked' : ''}><span className="quiz-cctv-check">{cctvTabOk ? '✓' : ''}</span>탭 이탈 없음</li>
-                      <li className={cctvSteadyTyping ? 'checked' : ''}><span className="quiz-cctv-check">{cctvSteadyTyping ? '✓' : ''}</span>꾸준히 진행 중</li>
-                      <li className={cctvMouseOk ? 'checked' : ''}><span className="quiz-cctv-check">{cctvMouseOk ? '✓' : ''}</span>자리 이탈 없음</li>
+                      <li className={cctvItemCodeTyping ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvItemCodeTyping ? '✓' : ''}</span>
+                        {t('cctv_coding')}
+                      </li>
+                      <li className={cctvTabOk ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvTabOk ? '✓' : ''}</span>
+                        {t('cctv_tab')}
+                      </li>
+                      <li className={cctvSteadyTyping ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvSteadyTyping ? '✓' : ''}</span>
+                        {t('cctv_steady')}
+                      </li>
+                      <li className={cctvMouseOk ? 'checked' : ''}>
+                        <span className="quiz-cctv-check">{cctvMouseOk ? '✓' : ''}</span>
+                        {t('cctv_mouse')}
+                      </li>
                     </ul>
                   </div>
                   <div className="quiz-cctv-footer-block">
                     <div className="quiz-cctv-footer-timer-wrap" aria-live="polite">
                       <span className="quiz-cctv-footer-time-big">⏱ {formatStudyMmSs(studySeconds)}</span>
                     </div>
-                    <button type="button" className="quiz-cctv-open-chat" onClick={() => { bumpActivity(); setIsChatOpen(true); }}>챗봇 열기</button>
-                    <span className="quiz-cctv-footer-tagline">딴짓 금지! 보고 있다!</span>
+                    <button type="button" className="quiz-cctv-open-chat" onClick={() => { bumpActivity(); setIsChatOpen(true); }}>{t('cctv_open_chat')}</button>
+                    <span className="quiz-cctv-footer-tagline">{t('cctv_tagline')}</span>
                   </div>
                 </div>
               </div>
@@ -801,13 +949,4 @@ export function Quiz({ t, params }) {
       </main>
     </div>
   );
-}
-
-function readStoredPersona(fallback) {
-  try {
-    const raw = JSON.parse(localStorage.getItem('chickodePrefs') || '{}');
-    return raw.persona ?? fallback ?? 'default';
-  } catch {
-    return fallback ?? 'default';
-  }
 }

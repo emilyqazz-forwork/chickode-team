@@ -97,7 +97,7 @@ export function GlobalSettingsModal({ onClose, t, params, setParams }) {
           </div>
 
           <div className="setting-group" style={{ alignItems: 'center' }}>
-            <label style={{ fontSize: '13px', margin: 0 }}>BGM 트랙</label>
+            <label style={{ fontSize: '13px', margin: 0 }}>{t('setting_bgm_track')}</label>
             <select
               className="setting-select"
               style={{ width: '80%' }}
@@ -105,23 +105,23 @@ export function GlobalSettingsModal({ onClose, t, params, setParams }) {
               disabled={!safeParams.bgm}
               onChange={(e) => setParams({ ...safeParams, bgmTrack: e.target.value })}
             >
-              <option value="cabin">오두막</option>
-              <option value="pixel">픽셀 로파이 st.</option>
+              <option value="cabin">{t('bgm_cabin')}</option>
+              <option value="pixel">{t('bgm_pixel')}</option>
             </select>
           </div>
 
           <div className="setting-group" style={{ alignItems: 'center' }}>
-            <label style={{ fontSize: '13px', margin: 0 }}>튜터 페르소나</label>
+            <label style={{ fontSize: '13px', margin: 0 }}>{t('setting_persona')}</label>
             <select
               className="setting-select"
               style={{ width: '80%' }}
               value={safeParams.persona}
               onChange={(e) => setParams({ ...safeParams, persona: e.target.value })}
             >
-              <option value="default">병아리 선배 🐥</option>
-              <option value="racer">폭주족 병아리 🏍</option>
-              <option value="prof">교수님 병아리 🎓</option>
-              <option value="church">교회오빠 병아리 ✝</option>
+              <option value="default">{t('persona_default')} 🐥</option>
+              <option value="racer">{t('persona_racer')} 🏍</option>
+              <option value="prof">{t('persona_prof')} 🎓</option>
+              <option value="church">{t('persona_church')} ✝</option>
             </select>
           </div>
 
@@ -146,7 +146,7 @@ export function GlobalSettingsModal({ onClose, t, params, setParams }) {
                 checked={dontShowTutorial}
                 onChange={(e) => applyTutorialPref(e.target.checked)}
               />
-              코치마크 튜토리얼 다시 보지 않기
+              {t('setting_tutorial_hide')}
             </label>
 
             <button
@@ -178,7 +178,7 @@ export function GlobalSettingsModal({ onClose, t, params, setParams }) {
                 cursor: 'pointer',
               }}
             >
-              튜토리얼 다시 보기
+              {t('setting_tutorial_show')}
             </button>
           </div>
         </div>
