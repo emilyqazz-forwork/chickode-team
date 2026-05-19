@@ -9,6 +9,7 @@ import { addAttempt, getProfile } from '../state/app-state';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from '../constants';
 
 // ⭐ [연동] Anthropic SDK 공식 라이브러리 로드
 import Anthropic from '@anthropic-ai/sdk';
@@ -482,6 +483,17 @@ export function Quiz({ t, params }) {
             defaultTemplate = `// [Level 5] 고급 문제 - 클래스 구조 및 알고리즘 설계\npublic class Application {\n    \n}`;
           }
 
+          // 1. 우선 임시 변수에 기존 템플릿 코드나 디폴트 템플릿을 담습니다.
+          let finalTemplate = p.template_code && p.template_code.trim() !== '' ? p.template_code : defaultTemplate;
+
+          // 2. [치환 가드 실행] 문자열 데이터라면 글자 형태의 \\n을 진짜 줄바꿈인 \n으로 컴파일합니다.
+          // ⭕ 수정 후: 어떤 형태의 꼬인 \n이 들어와도 3번 연속으로 걸러내 진짜 엔터로 치환합니다.
+          // ⭕ 방법 A 적용: 문자열 내에 쌩글자로 박힌 '\'와 'n' 조합을 강제로 엔터('\n')로 바꿉니다.
+          if (typeof finalTemplate === 'string') {
+            // 원래 줄바꿈 기호가 아니라 진짜 문자열 "\n" 자체를 타격하는 정규식입니다.
+            finalTemplate = finalTemplate.split('\\n').join('\n');
+          }
+
           return {
             ...p,
             title: p.title || '기초 코딩 역량 테스트',
@@ -794,7 +806,11 @@ export function Quiz({ t, params }) {
       {currentProblem.type === 'coding' ? (
         <div className="editor">
           <CodeMirror
-            value={codeValue}
+            value={
+              typeof codeValue === 'string' 
+                ? codeValue.replace(/\\n/g, '\n').replace(/\\\\n/g, '\n') 
+                : codeValue
+            }
             height="350px"
             extensions={[java()]}
             theme={oneDark}
@@ -861,13 +877,16 @@ export function Quiz({ t, params }) {
     </div>
   );
 
+  // return 문 위쪽에 이 한 줄을 먼저 적어두세요!
+  const currentChapterObj = settings.chapter || { title: "알 수 없는 단원" };
+
   return (
     <div className="coding-view" style={{ display: 'flex' }}>
       <nav className="top-nav">
         <button id="backToMain" title="돌아가기" onClick={() => navigate(-1)}>❮</button>
         <div className="logo">CHICKODE</div>
         <div className="top-right-group">
-          <span className="chapter-badge">Chapter {settings.chapter}</span>
+          <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{currentChapterObj.title}</span>
           <div className="user-tag">👤 {nickname} 님</div>
         </div>
       </nav>
