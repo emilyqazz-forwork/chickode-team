@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getAttempts } from '../state/app-state';
 import { settingsButtonRef } from '../state/tutorial-refs';
@@ -113,31 +114,38 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
     if (!placeBelow) tooltipTransform = 'translate(-50%, -100%)';
   }
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div className="home-coachmark-root" role="dialog" aria-modal="true">
       <style>{`
         .home-coachmark-root {
           position: fixed;
           inset: 0;
-          z-index: 10050;
+          z-index: 999999;
         }
         .home-coachmark-backdrop {
           position: fixed;
           inset: 0;
           background: rgba(0, 0, 0, 0.55);
-          z-index: 10051;
+          z-index: 1000000;
+        }
+        .home-coachmark-cutout-piece {
+          position: fixed;
+          background: rgba(0, 0, 0, 0.55);
+          z-index: 1000000;
         }
         .home-coachmark-spotlight {
           position: fixed;
           border-radius: 14px;
-          box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
-          z-index: 10052;
+          box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.85), 0 0 24px 6px rgba(255, 213, 79, 0.55);
+          z-index: 1000001;
           pointer-events: none;
           transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
         }
         .home-coachmark-tooltip {
           position: fixed;
-          z-index: 10053;
+          z-index: 1000002;
           width: min(320px, calc(100vw - 32px));
           background: #fdf6e3;
           border: 3px solid #5d4037;
@@ -179,7 +187,42 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
         }
       `}</style>
       {!spotlightStyle && <div className="home-coachmark-backdrop" />}
-      {spotlightStyle && <div className="home-coachmark-spotlight" style={spotlightStyle} />}
+      {spotlightStyle && (
+        <>
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{ top: 0, left: 0, width: '100vw', height: `${Math.max(0, spotlightStyle.top)}px` }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top + spotlightStyle.height}px`,
+              left: 0,
+              width: '100vw',
+              height: `calc(100vh - ${spotlightStyle.top + spotlightStyle.height}px)`,
+            }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top}px`,
+              left: 0,
+              width: `${Math.max(0, spotlightStyle.left)}px`,
+              height: `${spotlightStyle.height}px`,
+            }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top}px`,
+              left: `${spotlightStyle.left + spotlightStyle.width}px`,
+              width: `calc(100vw - ${spotlightStyle.left + spotlightStyle.width}px)`,
+              height: `${spotlightStyle.height}px`,
+            }}
+          />
+          <div className="home-coachmark-spotlight" style={spotlightStyle} />
+        </>
+      )}
       <div
         className="home-coachmark-tooltip"
         style={{ top: tooltipTop, left: tooltipLeft, transform: tooltipTransform }}
@@ -195,7 +238,8 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -235,8 +279,8 @@ export function Home({ t, lang }) {
 
   useEffect(() => {
     const bgTimer = window.setInterval(() => {
-      setActiveBg((current) => (current === 0 ? 1 : 0));
-    }, 60000);
+      setActiveBg((current) => (current + 1) % 5);
+    }, 30000);
 
     return () => window.clearInterval(bgTimer);
   }, []);
@@ -381,6 +425,18 @@ export function Home({ t, lang }) {
       <div
         className="home-bg-layer"
         style={{ backgroundImage: "url('/images/배경2.png')", opacity: activeBg === 1 ? 1 : 0 }}
+      />
+      <div
+        className="home-bg-layer"
+        style={{ backgroundImage: "url('/images/배경3.png')", opacity: activeBg === 2 ? 1 : 0 }}
+      />
+      <div
+        className="home-bg-layer"
+        style={{ backgroundImage: "url('/images/배경4.png')", opacity: activeBg === 3 ? 1 : 0 }}
+      />
+      <div
+        className="home-bg-layer"
+        style={{ backgroundImage: "url('/images/배경5.png')", opacity: activeBg === 4 ? 1 : 0 }}
       />
       <div className="home-bg-overlay" />
       <header className="header">
