@@ -16,10 +16,13 @@ import Anthropic from '@anthropic-ai/sdk';
 // API 키 로드 (.env에서 VITE_ 접두사로 안전하게 탐색)
 const anthropicApiKey = import.meta.env.VITE_CHICKODE_CLAUDE_API_KEY;
 
-// Anthropic 인스턴스 초기화 (클라이언트 브라우저 환경 직접 통신 옵션 활성화)
+// Anthropic 인스턴스 초기화 (클라이언트 브라우저 환경 직접 통신 옵션 및 인증 방어 활성화)
 const anthropic = new Anthropic({
   apiKey: anthropicApiKey,
-  dangerouslyAllowBrowser: true 
+  dangerouslyAllowBrowser: true,
+  headers: {
+    "X-Title": "Chickode Code Platform"
+  }
 });
 
 /** CHICK CAM 말풍선 — 상황별 풀 (15초마다 같은 상황 내 랜덤 교체) */
@@ -308,7 +311,6 @@ function formatStudyMmSs(totalSec) {
 function descToOpeningHint(desc) {
   const raw = String(desc || '').trim().replace(/\s+/g, ' ');
   if (!raw) return '설명에서 요구하는 조건만 한 줄로 짚어 보면 돼';
-  // 🎯 안전 가드: 데이터 파싱 도중 undefined 개체 런타임 분쇄 에러 차단
   const firstLine = raw ? raw.split('\n')[0] : '';
   const stop = firstLine.search(/[.!?。路線](\s|$)/);
   let line = (stop >= 0 ? firstLine.slice(0, stop) : firstLine).trim();
@@ -339,7 +341,6 @@ function keywordToGuideQuestion(keyword, index) {
   return templates[index % templates.length](kw);
 }
 
-// 로컬 저장을 읽는 유틸리티
 function readStoredPersona(fallback) {
   try {
     const raw = JSON.parse(localStorage.getItem('chickodePrefs') || '{}');
@@ -465,23 +466,34 @@ export function Quiz({ t, params }) {
           for (let i = 0; i < objCount; i++) mergedList.push(objPool[i % objPool.length]);
         }
         
-        // 💡 중요: 만약 DB에 객관식 문제가 0개라면, 지지부진하게 뻗지 않고
-        // 퀴즈 총 요구 수량(count)만큼을 주관식 코딩 데이터(subPool)로 강제 전량 치환 수렴합니다!
+        // 중요: 만약 DB에 객관식 문제가 0개라면 코딩 데이터(subPool)로 강제 전량 치환 수렴
         if (subPool.length > 0) {
           const actualNeededSubCount = objPool.length === 0 ? count : subCount;
           for (let i = 0; i < actualNeededSubCount; i++) mergedList.push(subPool[i % subPool.length]);
         }
 
-        // 5. 🎯 [UI 공간 데이터 바인딩 직결 매핑]
-        // 받아온 DB 원본 레코드를 프론트엔드 컴포넌트 렌더링 규격 속성 공간에 주입합니다.
-        const mappedList = mergedList.map(p => ({
-          ...p,
-          title: p.title || '기초 코딩 역량 테스트',
-          desc: p.description, // DB description -> UI desc 매핑 
-          difficulty: p.code_level === 1 ? '기초' : p.code_level === 5 ? '고급' : '중급', 
-          template: p.template_code || '', // DB template_code -> 에디터 template 매핑
-          expectedExample: p.expected_example || p.answer || ''
-        })).sort(() => 0.5 - Math.random());
+        // 5. 🎯 [UI 공간 데이터 바인딩 직결 매핑 + type 강제 가드]
+        const mappedList = mergedList.map(p => {
+          // code_level별 백업 기본 템플릿 코드 정의 (DB가 비어있을 경우 대비 예외 가드)
+          let defaultTemplate = `public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요 (Level ${p.code_level || 1})\n    }\n}`;
+          if (p.code_level === 3) {
+            defaultTemplate = `public class Solution {\n    public void solution() {\n        // [Level 3] 조건에 맞춰 메소드 내부를 완성하세요\n    }\n}`;
+          } else if (p.code_level === 5) {
+            defaultTemplate = `// [Level 5] 고급 문제 - 클래스 구조 및 알고리즘 설계\npublic class Application {\n    \n}`;
+          }
+
+          return {
+            ...p,
+            title: p.title || '기초 코딩 역량 테스트',
+            desc: p.description, 
+            type: p.type || 'coding', // ⭐ [버그 해결] DB의 type이 비어있으면 강제로 에디터 모드('coding') 주입!
+            difficulty: p.code_level === 1 ? '기초' : p.code_level === 5 ? '고급' : '중급', 
+            // 🎯 핵심: DB의 template_code를 우선순위로 두고, 없으면 레벨별 기본 가이드 구조 주입
+            template: p.template_code && p.template_code.trim() !== '' ? p.template_code : defaultTemplate, 
+            answer: p.answer || '', // ⭐ Supabase 정답 문자열 명시적 바인딩
+            expectedExample: p.expected_example || p.answer || ''
+          };
+        }).sort(() => 0.5 - Math.random());
 
         setQuizList(mappedList);
       } catch (err) {
@@ -493,13 +505,16 @@ export function Quiz({ t, params }) {
     fetchProblemsFromSupabase();
   }, [settings]);
 
-  // 문제 인덱스 스위칭 훅
+  // 문제 인덱스 스위칭 훅 (문제가 바뀔 때마다 해당 level의 template을 에디터에 주입)
   useEffect(() => {
     if (quizList.length === 0) return;
     const currentProblem = quizList[currentIndex];
     setIsSubmitted(false);
     setSelectedOption(null);
+    
+    // 🎯 동적 바인딩: 레벨별로 매핑 완료된 템플릿(template_code) 내용을 에디터(codeValue)에 주입합니다!
     setCodeValue(currentProblem.template || '');
+    
     setTermOutput([
       { type: 'system', text: '> Chickode IDE Console v1.0.0' },
       { type: 'system', text: '> Ready for compilation...' },
@@ -649,6 +664,7 @@ export function Quiz({ t, params }) {
     }
   };
 
+  // ⭐ [Supabase 실제 정답 동기화 채점 가드 블록]
   const handleSubmit = () => {
     bumpActivity();
     if (!quizList[currentIndex]) return;
@@ -659,6 +675,7 @@ export function Quiz({ t, params }) {
     }
     const currentProblem = quizList[currentIndex];
     let isCorrect = false;
+
     if (currentProblem.type === 'multiple' || currentProblem.type === 'ox') {
       if (!selectedOption) {
         alert('답을 선택해주세요!');
@@ -666,8 +683,19 @@ export function Quiz({ t, params }) {
       }
       isCorrect = selectedOption === currentProblem.answer;
     } else {
-      isCorrect = currentProblem.keywords.every((kw) => codeValue.includes(kw));
+      // 🎯 [완벽 연동 기믹] 사용자가 프론트 에디터창에 입력한 소스코드 문자열(codeValue)과
+      // Supabase 정답(answer) 문자열의 공백 및 줄바꿈(\n, \r)을 완전히 제거하여 순수 논리 구조만 엄격하게 매칭 비교합니다!
+      const userCodeClean = String(codeValue || '').replace(/\s+/g, '');
+      const dbAnswerClean = String(currentProblem?.answer || '').replace(/\s+/g, '');
+      
+      const isStringMatch = userCodeClean.includes(dbAnswerClean) && dbAnswerClean !== '';
+      const isKeywordMatch = currentProblem.keywords && currentProblem.keywords.length > 0
+        ? currentProblem.keywords.every((kw) => codeValue.includes(kw))
+        : false;
+
+      isCorrect = isStringMatch || isKeywordMatch;
     }
+
     addAttempt({
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       createdAt: Date.now(),
@@ -682,9 +710,11 @@ export function Quiz({ t, params }) {
       expectedExample: currentProblem.expectedExample || currentProblem.answer || '',
       isCorrect,
     });
+
     setIsSubmitted(true);
     addTermLog('============================', 'system');
     addTermLog('Evaluating code...', 'system');
+    
     setTimeout(() => {
       if (cctvResultClearTimeoutRef.current) {
         clearTimeout(cctvResultClearTimeoutRef.current);
@@ -765,7 +795,7 @@ export function Quiz({ t, params }) {
         <div className="editor">
           <CodeMirror
             value={codeValue}
-            height="300px"
+            height="350px"
             extensions={[java()]}
             theme={oneDark}
             onChange={(val) => {
@@ -845,7 +875,7 @@ export function Quiz({ t, params }) {
         <div className="left">
           <div className="problem-card">
             <h3>[{currentIndex + 1}/{quizList.length}] {currentProblem.title}</h3>
-            <p>{currentProblem.desc}</p>
+            <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>{currentProblem.desc}</p>
           </div>
           <div style={{ fontSize: 12, color: '#5c3d2e', marginBottom: 6 }}>
             {getPersonaModeDisplay(persona)}
@@ -880,7 +910,7 @@ export function Quiz({ t, params }) {
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'bot' ? 'flex-start' : 'flex-end', maxWidth: '75%' }}>
                         <div className="msg-meta">{m.role === 'bot' ? tutorPersona.label : '나'}</div>
-                        <div className="bubble">{m.text}</div>
+                        <div className="bubble" style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
                       </div>
                     </div>
                   ))}
