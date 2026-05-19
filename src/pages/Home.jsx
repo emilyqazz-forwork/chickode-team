@@ -1,10 +1,13 @@
+// Home.jsx - 메인 홈 화면 로비이자 단계별 학습 셋업 모달을 순차 제어하는 총괄 관제 파일
+
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getAttempts } from '../state/app-state';
 import { settingsButtonRef } from '../state/tutorial-refs';
 
-// 챕터 데이터 - 난이도별(basic/mid/adv) 챕터 목록
+// --- [1. 정적 데이터 정의] ---
+// JAVA_CHAPTERS: 선택한 난이도(basic/mid/adv)에 따라 렌더링할 내부 데이터베이스 매핑 키 리스트
 const JAVA_CHAPTERS = {
   basic: [
     { id: 1, key: 'java_basic_1' },
@@ -20,14 +23,17 @@ const JAVA_CHAPTERS = {
   ],
 };
 
+// TUTORIAL_STEPS: 홈 화면 진입 시 하이라이트할 타겟 DOM의 CSS 선택자(Selector) 및 설명 텍스트 번역 키 정의
 const TUTORIAL_STEPS = [
-  { selector: null, titleKey: 'tutorial_welcome_title', bodyKey: 'tutorial_welcome_body' },
-  { selector: '.home-page .button-wrapper', titleKey: 'tutorial_menu_title', bodyKey: 'tutorial_menu_body' },
-  { selector: '#globalSettingsBtn', titleKey: 'tutorial_settings_title', bodyKey: 'tutorial_settings_body' },
-  { selector: '.home-login-action', titleKey: 'tutorial_login_title', bodyKey: 'tutorial_login_body' },
-  { selector: '#homeBgmBtn', titleKey: 'tutorial_bgm_title', bodyKey: 'tutorial_bgm_body' },
+  { selector: null, titleKey: 'tutorial_welcome_title', bodyKey: 'tutorial_welcome_body' }, // 첫 웰컴 인사 (스포트라이트 없음)
+  { selector: '.home-page .button-wrapper', titleKey: 'tutorial_menu_title', bodyKey: 'tutorial_menu_body' }, // 메뉴 버튼 목록 강조
+  { selector: '#globalSettingsBtn', titleKey: 'tutorial_settings_title', bodyKey: 'tutorial_settings_body' }, // 환경설정 아이콘 강조
+  { selector: '.home-login-action', titleKey: 'tutorial_login_title', bodyKey: 'tutorial_login_body' }, // 프로필/로그인 바 강조
+  { selector: '#homeBgmBtn', titleKey: 'tutorial_bgm_title', bodyKey: 'tutorial_bgm_body' }, // BGM LP판 강조
 ];
 
+// --- [2. 로컬 스토리지 튜토리얼 유틸리티 함수] ---
+// 사용자가 가이드를 시청 완료했는지 로컬 브라우저 저장소 조사
 function hasSeenTutorial() {
   try {
     const seen = window.localStorage.getItem('chickode_tutorial_seen');
@@ -37,6 +43,7 @@ function hasSeenTutorial() {
   }
 }
 
+// 사용자가 가이드를 완료했거나 스킵했을 때 로컬 브라우저에 시청 완료 도장 찍기
 function markTutorialSeen() {
   try {
     window.localStorage.setItem('chickode_tutorial_seen', 'true');
@@ -45,18 +52,21 @@ function markTutorialSeen() {
   }
 }
 
+// --- [3. 하이라이트 가이드 레이어: HomeCoachmark 컴포넌트] ---
 function HomeCoachmark({ t, step, onNext, onSkip }) {
-  const [rect, setRect] = useState(null);
-  const current = TUTORIAL_STEPS[step];
-  const isLast = step === TUTORIAL_STEPS.length - 1;
-  const isSettingsStep = current?.selector === '#globalSettingsBtn';
+  const [rect, setRect] = useState(null); // 실시간 타겟 DOM의 위치 좌표(동적 크기 계산용)
+  const current = TUTORIAL_STEPS[step];  // 현재 단계에 매핑되는 가이드 옵션 객체
+  const isLast = step === TUTORIAL_STEPS.length - 1; // 마지막 단계 단계 확인 플래그
+  const isSettingsStep = current?.selector === '#globalSettingsBtn'; // 현재 타겟이 헤더 환경설정인지 체크
 
+  // 타겟 엘리먼트의 브라우저 상의 절대 위치(getBoundingClientRect)를 실시간 추적하여 스포트라이트 구멍을 뚫어주는 효과
   useEffect(() => {
     if (step == null || !current?.selector) {
       setRect(null);
       return undefined;
     }
     const update = () => {
+      // 헤더 환경설정 버튼의 경우 GlobalNav 쪽에 렌더링되므로 참조 Ref를 따로 가져와 계산하는 가드식
       if (isSettingsStep && settingsButtonRef.current) {
         setRect(settingsButtonRef.current.getBoundingClientRect());
         return;
@@ -65,6 +75,7 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
       setRect(el ? el.getBoundingClientRect() : null);
     };
     update();
+    // 창 크기가 조절되거나 마우스 스크롤이 움직여도 구멍의 위치가 엘리먼트를 실시간으로 쫓아가도록 프레임 단위 추적
     const raf = window.requestAnimationFrame(update);
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
@@ -77,7 +88,7 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
 
   if (step == null || !current) return null;
 
-  const pad = 10;
+  const pad = 10; // 구멍 크기에 약간의 여백(Padding) 추가 계산
   const spotlightStyle = rect
     ? {
         top: rect.top - pad,
@@ -87,11 +98,13 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
       }
     : null;
 
+  // 툴팁 말풍선 기본 중앙 정렬 배치 초깃값 설정
   let tooltipTop = '50%';
   let tooltipLeft = '50%';
   let tooltipTransform = 'translate(-50%, -50%)';
   const tooltipMaxWidth = 320;
 
+  // 타겟 DOM이 잡혔을 때, 툴팁이 타겟 바로 아래 혹은 위 공간 중 넉넉한 위치를 찾아 알아서 달라붙는 연산 기믹
   if (rect && isSettingsStep) {
     const gap = 12;
     const centerX = rect.left + rect.width / 2;
@@ -104,13 +117,13 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
   } else if (rect) {
     const below = rect.bottom + 16;
     const above = rect.top - 16;
-    const placeBelow = below + 180 < window.innerHeight;
+    const placeBelow = below + 180 < window.innerHeight; // 화면 하단 공간이 남는지 검사
     tooltipLeft = `${Math.min(
       Math.max(rect.left + rect.width / 2, tooltipMaxWidth / 2 + 16),
       window.innerWidth - tooltipMaxWidth / 2 - 16,
     )}px`;
     tooltipTransform = 'translateX(-50%)';
-    tooltipTop = placeBelow ? `${below}px` : `${above}px`;
+    tooltipTop = placeBelow ? `${below}px` : `${above}px`; // 공간이 있으면 밑에, 모자라면 위에 배치
     if (!placeBelow) tooltipTransform = 'translate(-50%, -100%)';
   }
 
@@ -118,7 +131,9 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
 
   return createPortal(
     <div className="home-coachmark-root" role="dialog" aria-modal="true">
+      {/* 툴팁 및 가이드 전용 CSS 스타일 인젝션 */}
       <style>{`
+<<<<<<< HEAD
         .home-coachmark-root {
           position: fixed;
           inset: 0;
@@ -185,8 +200,24 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
           background: #5d4037;
           color: #fff8d8;
         }
+=======
+        .home-coachmark-root { position: fixed; inset: 0; z-index: 10050; }
+        .home-coachmark-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 10051; }
+        /* box-shadow 9999px을 뚫어 타겟을 제외한 온 화면을 어둡게 막는 스포트라이트 핵심 기술 */
+        .home-coachmark-spotlight { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); z-index: 10052; pointer-events: none; transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease; }
+        .home-coachmark-tooltip { position: fixed; z-index: 10053; width: min(320px, calc(100vw - 32px)); background: #fdf6e3; border: 3px solid #5d4037; border-radius: 16px; padding: 18px 18px 14px; box-shadow: 6px 6px 0 #3e2723; font-family: 'Jua', sans-serif; color: #3e2723; }
+        .home-coachmark-tooltip h3 { margin: 0 0 8px; font-size: 1.1rem; }
+        .home-coachmark-tooltip p { margin: 0 0 14px; font-size: 0.95rem; line-height: 1.45; }
+        .home-coachmark-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .home-coachmark-actions button { border: 2px solid #5d4037; border-radius: 10px; padding: 8px 14px; font-family: 'Jua', sans-serif; font-weight: 700; cursor: pointer; }
+        .home-coachmark-skip { background: #e8dcc8; color: #5d4037; }
+        .home-coachmark-next { background: #5d4037; color: #fff8d8; }
+>>>>>>> 6a505398de21cd94856d2000e3feeb991feea40c
       `}</style>
+      
+      {/* 타겟 정보가 아예 없는 첫 단계는 온 화면을 막는 일반 암막 처리, 타겟이 잡히면 구멍이 뚫린 스포트라이트 활성화 */}
       {!spotlightStyle && <div className="home-coachmark-backdrop" />}
+<<<<<<< HEAD
       {spotlightStyle && (
         <>
           <div
@@ -223,6 +254,11 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
           <div className="home-coachmark-spotlight" style={spotlightStyle} />
         </>
       )}
+=======
+      {spotlightStyle && <div className="home-coachmark-spotlight" style={spotlightStyle} />}
+      
+      {/* 캡션 안내 텍스트 정보가 출력되는 귀여운 말풍선 카드 */}
+>>>>>>> 6a505398de21cd94856d2000e3feeb991feea40c
       <div
         className="home-coachmark-tooltip"
         style={{ top: tooltipTop, left: tooltipLeft, transform: tooltipTransform }}
@@ -230,9 +266,11 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
         <h3>{t(current.titleKey)}</h3>
         <p>{t(current.bodyKey)}</p>
         <div className="home-coachmark-actions">
+          {/* 스킵 버튼: 누르면 가이드 전체 종료 */}
           <button type="button" className="home-coachmark-skip" onClick={onSkip}>
             {t('tutorial_skip')}
           </button>
+          {/* 다음 버튼: 마지막 단계라면 '완료' 문구를 띄우고 종료, 아니면 다음 인덱스로 변경 */}
           <button type="button" className="home-coachmark-next" onClick={onNext}>
             {isLast ? t('tutorial_done') : t('tutorial_next')}
           </button>
@@ -243,89 +281,101 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
   );
 }
 
+// --- [4. 홈화면 메인 독립 컴포넌트 실행 파트] ---
 export function Home({ t, lang }) {
-  // step: 현재 어떤 모달을 보여줄지 관리 (null이면 모달 없음)
-  const [step, setStep] = useState(null); // null | 'lang' | 'level' | 'chapter' | 'setting'
-  const [selectedLang, setSelectedLang] = useState(null);     // 선택한 언어 (java, python 등)
-  const [selectedLevel, setSelectedLevel] = useState(null);   // 선택한 난이도 (basic, mid, adv)
-  const [selectedChapter, setSelectedChapter] = useState(null); // 선택한 챕터 번호
-  const [progress, setProgress] = useState({});               // 챕터별 진도율 (0~100%)
-  const [displayText, setDisplayText] = useState('');         // 타이핑 애니메이션 텍스트
-  const [tutorialStep, setTutorialStep] = useState(null);
-  const [activeBg, setActiveBg] = useState(0);
-  const navigate = useNavigate();
+  // --- [상태 전용 스위치 정의] ---
+  const [step, setStep] = useState(null);                       // 모달 진행 단계 상태 플래그 (null | 'lang' | 'level' | 'chapter' | 'setting')
+  const [selectedLang, setSelectedLang] = useState(null);       // 사용자가 선택 완료한 언어 상태 (java)
+  const [selectedLevel, setSelectedLevel] = useState(null);      // 사용자가 선택 완료한 난이도 상태 (basic, mid, adv)
+  const [selectedChapter, setSelectedChapter] = useState(null);  // 사용자가 선택 완료한 최종 챕터 식별 번호 (1~4)
+  const [progress, setProgress] = useState({});                 // 데이터베이스에서 집계해온 챕터별 실시간 진도율 퍼센트 맵 객체
+  const [displayText, setDisplayText] = useState('');           // 메인 타이틀 자막에 한 글자씩 써내려가는 가변 텍스트 상태
+  const [tutorialStep, setTutorialStep] = useState(null);       // 현재 진행 중인 코치마크 인덱스 상태 (null이면 미작동)
+  const [activeBg, setActiveBg] = useState(0);                   // 배경 레이어 전환용 인덱스 상태 (0 혹은 1)
+  const navigate = useNavigate();                               // 주소 경로 이동 처리용 React-Router 네비게이터 훅
 
+  // 가이드라인 시청 최종 스케줄 마감 처리 콜백
   const finishTutorial = useCallback(() => {
     setTutorialStep(null);
-    markTutorialSeen();
+    markTutorialSeen(); // 로컬 스토리지 시청 완료 마킹
   }, []);
 
+  // 가이드라인 프로세스 초기화 스타트 콜백
   const startTutorial = useCallback(() => {
-    setStep(null);
-    setTutorialStep(0);
+    setStep(null);        // 열려있는 일반 모달창 강제 종료
+    setTutorialStep(0);   // 가이드 0번 인덱스(웰컴 메시지) 로드
   }, []);
 
+  // [이벤트 연동 리스너] GlobalNav나 GlobalSettingsModal에서 '가이드 다시보기' 원격 신호가 오면 수신 감지 후 스타트
   useEffect(() => {
     const onStart = () => startTutorial();
     window.addEventListener('chickode:start_tutorial_on_home', onStart);
     return () => window.removeEventListener('chickode:start_tutorial_on_home', onStart);
   }, [startTutorial]);
 
+  // [첫 진입 가드] 시청 완료 이력이 없는 완전 첫 가입/첫 방문 유저라면, 0.6초 뒤에 가이드 자동 실행
   useEffect(() => {
     if (hasSeenTutorial()) return undefined;
     const timer = window.setTimeout(() => startTutorial(), 600);
     return () => window.clearTimeout(timer);
   }, [startTutorial]);
 
+  // 애니메이션 배경화면 스위칭 장치: 60초(1분)마다 activeBg 상태를 0과 1 사이로 뒤집어 페이드아웃 효과 구현
   useEffect(() => {
     const bgTimer = window.setInterval(() => {
+<<<<<<< HEAD
       setActiveBg((current) => (current + 1) % 5);
     }, 30000);
 
+=======
+      setActiveBg((current) => (current === 0 ? 1 : 0));
+    }, 60000);
+>>>>>>> 6a505398de21cd94856d2000e3feeb991feea40c
     return () => window.clearInterval(bgTimer);
   }, []);
 
-  // 챕터별 진도율 계산
+  // --- [5. 실시간 진도율 및 통계 정산 연산 파트] ---
   useEffect(() => {
-    const attempts = getAttempts(); // 저장된 풀이 기록 가져오기
-    const totalByChapter = { 1: 13, 2: 13, 3: 13, 4: 13 }; // 챕터별 총 문제 수
+    const attempts = getAttempts(); // 로컬이나 전역에 적립된 전체 풀이 시도 이력 로드
+    const totalByChapter = { 1: 13, 2: 13, 3: 13, 4: 13 }; // 시스템 명세 상 각 챕터별 고정 배치 총 문항 개수
     const correctByChapter = {};
-    const seenProblems = {}; // 같은 문제 중복 카운트 방지용
+    const seenProblems = {}; // 동일 문항 중복 정답 처리를 차단하기 위한 고유 식별 분별용 보관소
 
     for (const a of attempts) {
-      if (!a.isCorrect) continue; // 틀린 문제는 건너뜀
+      if (!a.isCorrect) continue; // 맞춘 정답 풀이만 골라내는 조건부 패스
       const ch = a.chapter;
       const pid = a.problemId || a.title;
+      // 한 번 카운트한 유니크 문제 코드는 재연산에서 제외시켜 중복 어뷰징 점수 차단
       if (!seenProblems[pid]) {
         seenProblems[pid] = true;
-        correctByChapter[ch] = (correctByChapter[ch] || 0) + 1; // 챕터별 정답 수 누적
+        correctByChapter[ch] = (correctByChapter[ch] || 0) + 1; // 해당 챕터 맞춘 개수 누적 가산
       }
     }
 
-    // 챕터별 진도율 계산 (정답수 / 총문제수 * 100, 최대 100%)
+    // 최종 챕터별 퍼센트 연산 정산서 생성 (맞춘 개수 / 총 문제수 * 100, 최대 100% 한계치 방어)
     const newProgress = {};
     [1, 2, 3, 4].forEach(ch => {
       const total = totalByChapter[ch] || 1;
       const correct = correctByChapter[ch] || 0;
       newProgress[ch] = Math.min(Math.round((correct / total) * 100), 100);
     });
-    setProgress(newProgress);
+    setProgress(newProgress); // 정산 완료된 진도율 상태 등록
   }, []);
 
-  // 타이핑 애니메이션 - 한 글자씩 80ms마다 추가
+  // --- [6. ⌨️ 서브타이틀 텍스트 한 글자씩 타이핑 구현 기믹] ---
   useEffect(() => {
-    const fullText = t('main_subtitle');
+    const fullText = t('main_subtitle'); // 다국어 변역 번들에서 서브타이틀 원본 문장을 긁어옵니다.
     let idx = 0;
-    setDisplayText('');
+    setDisplayText(''); // 기존 자막 초기 비우기
     const timer = setInterval(() => {
       idx += 1;
-      setDisplayText(fullText.slice(0, idx));
-      if (idx >= fullText.length) clearInterval(timer);
+      setDisplayText(fullText.slice(0, idx)); // 80ms 간격으로 문자열을 한 칸씩 더 슬라이싱해서 이어붙임
+      if (idx >= fullText.length) clearInterval(timer); // 문장 완성이 끝나면 타이머 폭파 종료
     }, 80);
     return () => clearInterval(timer);
-  }, [lang, t]);
+  }, [lang, t]); // 사용 언어가 바뀌면 타이핑 애니메이션 재시작
 
-  // 모달 전체 닫기 및 선택값 초기화
+  // 열려있는 모달 인덱스 정보 및 캐싱 상태를 완전 제로 상태로 리셋하는 청소 함수
   const closeAll = () => {
     setStep(null);
     setSelectedLang(null);
@@ -335,89 +385,25 @@ export function Home({ t, lang }) {
 
   return (
     <div className="main-container home-page" style={{ display: 'flex', backgroundImage: 'none', overflow: 'hidden' }}>
+      {/* 로비 대시보드 인터페이스 전용 CSS 마크다운 주입 */}
       <style>{`
-        .home-page .home-bg-layer {
-          position: absolute;
-          inset: 0;
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
-          transition: opacity 2s ease-in-out;
-          z-index: 0;
-          pointer-events: none;
-        }
-        .home-page .home-bg-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.35);
-          z-index: 1;
-          pointer-events: none;
-        }
-        .home-page > :not(.home-bg-layer):not(.home-bg-overlay):not(.modal-overlay) {
-          position: relative;
-          z-index: 2;
-        }
-        .home-page > .modal-overlay {
-          z-index: 100;
-        }
-        .home-page .btn-link img {
-          mix-blend-mode: multiply;
-          transition: transform 0.25s ease, filter 0.25s ease;
-        }
-        .home-page .btn-link:hover img {
-          animation: home-btn-float 1.4s ease-in-out infinite;
-          filter:
-            drop-shadow(0 0 6px rgba(255, 235, 130, 1))
-            drop-shadow(0 0 14px rgba(255, 210, 70, 0.9))
-            drop-shadow(0 0 26px rgba(255, 193, 7, 0.55));
-        }
-        .home-page .btn-link:active img {
-          animation: home-btn-pop 0.45s ease forwards;
-          filter:
-            drop-shadow(0 0 8px rgba(255, 245, 170, 1))
-            drop-shadow(0 0 18px rgba(255, 220, 90, 1))
-            drop-shadow(0 0 34px rgba(255, 193, 7, 0.8));
-        }
-        .home-page .btn-link:hover .home-btn-label {
-          text-shadow:
-            0 0 8px rgba(255, 220, 100, 0.95),
-            0 0 16px rgba(255, 193, 7, 0.5),
-            0 1px 0 rgba(255, 248, 216, 0.8);
-        }
-        .home-page .btn-link:active .home-btn-label {
-          text-shadow:
-            0 0 10px rgba(255, 235, 140, 1),
-            0 0 20px rgba(255, 200, 60, 0.85),
-            0 1px 0 rgba(255, 248, 216, 0.8);
-        }
-        .home-page .btn-link {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-        }
-        .home-page .home-btn-label {
-          font-family: 'Jua', sans-serif;
-          font-size: 15px;
-          font-weight: 700;
-          color: #3e2723;
-          text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8);
-          pointer-events: none;
-        }
-        @keyframes home-btn-float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-        @keyframes home-btn-pop {
-          0% { transform: translateY(0) scale(1); }
-          35% { transform: translateY(-16px) scale(1.06); }
-          65% { transform: translateY(-10px) scale(1.03); }
-          100% { transform: translateY(-12px) scale(1.04); }
-        }
+        .home-page .home-bg-layer { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; transition: opacity 2s ease-in-out; z-index: 0; pointer-events: none; }
+        .home-page .home-bg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.35); z-index: 1; pointer-events: none; }
+        .home-page > :not(.home-bg-layer):not(.home-bg-overlay):not(.modal-overlay) { position: relative; z-index: 2; }
+        .home-page > .modal-overlay { z-index: 100; }
+        .home-page .btn-link img { mix-blend-mode: multiply; transition: transform 0.25s ease, filter 0.25s ease; }
+        /* 메뉴 마우스 오버 시 공중에 둥둥 뜨고 불타오르는 듯한(drop-shadow 삼중 연산) 네온 효과 정의 */
+        .home-page .btn-link:hover img { animation: home-btn-float 1.4s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(255, 235, 130, 1)) drop-shadow(0 0 14px rgba(255, 210, 70, 0.9)) drop-shadow(0 0 26px rgba(255, 193, 7, 0.55)); }
+        /* 메뉴 버튼을 마우스로 꾸욱 눌렀을 때 탄력 있게 팅겨오르는 팝업 애니메이션 바인딩 */
+        .home-page .btn-link:active img { animation: home-btn-pop 0.45s ease forwards; filter: drop-shadow(0 0 8px rgba(255, 245, 170, 1)) drop-shadow(0 0 18px rgba(255, 220, 90, 1)) drop-shadow(0 0 34px rgba(255, 193, 7, 0.8)); }
+        .home-page .btn-link:hover .home-btn-label { text-shadow: 0 0 8px rgba(255, 220, 100, 0.95), 0 0 16px rgba(255, 193, 7, 0.5), 0 1px 0 rgba(255, 248, 216, 0.8); }
+        .home-page .btn-link:active .home-btn-label { text-shadow: 0 0 10px rgba(255, 235, 140, 1), 0 0 20px rgba(255, 200, 60, 0.85), 0 1px 0 rgba(255, 248, 216, 0.8); }
+        .home-page .btn-link { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .home-page .home-btn-label { font-family: 'Jua', sans-serif; font-size: 15px; font-weight: 700; color: #3e2723; text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8); pointer-events: none; }
+        @keyframes home-btn-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes home-btn-pop { 0% { transform: translateY(0) scale(1); } 35% { transform: translateY(-16px) scale(1.06); } 65% { transform: translateY(-10px) scale(1.03); } 100% { transform: translateY(-12px) scale(1.04); } }
       `}</style>
+<<<<<<< HEAD
       <div
         className="home-bg-layer"
         style={{ backgroundImage: "url('/images/배경.png')", opacity: activeBg === 0 ? 1 : 0 }}
@@ -438,15 +424,23 @@ export function Home({ t, lang }) {
         className="home-bg-layer"
         style={{ backgroundImage: "url('/images/배경5.png')", opacity: activeBg === 4 ? 1 : 0 }}
       />
+=======
+      
+      {/* 2초 동안 부드럽게 대칭 교차되는 디렉토리 크로스페이드 애니메이션 배경 레이어 컴포넌트 2개 배치 */}
+      <div className="home-bg-layer" style={{ backgroundImage: "url('/images/배경.png')", opacity: activeBg === 0 ? 1 : 0 }} />
+      <div className="home-bg-layer" style={{ backgroundImage: "url('/images/배경2.png')", opacity: activeBg === 1 ? 1 : 0 }} />
+>>>>>>> 6a505398de21cd94856d2000e3feeb991feea40c
       <div className="home-bg-overlay" />
+      
       <header className="header">
         <h1 className="glow-title">{t('main_title')}</h1>
-        {/* 타이핑 애니메이션 텍스트 + 깜빡이는 커서 */}
+        {/* 타이핑 효과가 흘러나오는 서브 문구 및 끝부분에 깜빡이는 커서 바(|) 노출 */}
         <p className="subtitle">{displayText}<span className="cursor">|</span></p>
       </header>
 
-      {/* 메인 버튼 메뉴 */}
+      {/* --- [7. 대시보드 중앙 핵심 4대 메뉴 대형 아이콘 버튼 보드판] --- */}
       <div className="button-wrapper">
+        {/* 메뉴 1: 문제 풀이 모드 실행 (클릭 시 1단계 언어선택 'lang' 모달창 트리거 실행) */}
         <button
           className="btn-link"
           onClick={() => setStep('lang')}
@@ -455,6 +449,7 @@ export function Home({ t, lang }) {
           <img src="/images/home_quiz.png" alt="" />
           <span className="home-btn-label">{t('btn_quiz')}</span>
         </button>
+        {/* 메뉴 2: 오답노트 페이지 이동 링크 */}
         <button
           className="btn-link"
           onClick={() => navigate('/note')}
@@ -463,6 +458,7 @@ export function Home({ t, lang }) {
           <img src="/images/home_ox.png" alt="" />
           <span className="home-btn-label">{t('btn_note')}</span>
         </button>
+        {/* 메뉴 3: 문법 패턴 분석기 페이지 이동 링크 */}
         <button
           className="btn-link"
           onClick={() => navigate('/pattern')}
@@ -471,6 +467,7 @@ export function Home({ t, lang }) {
           <img src="/images/home_pattern.png" alt="" />
           <span className="home-btn-label">{t('btn_pattern')}</span>
         </button>
+        {/* 메뉴 4: 타자 연습 미니게임 페이지 이동 링크 */}
         <button
           className="btn-link"
           onClick={() => navigate('/minigame')}
@@ -481,67 +478,72 @@ export function Home({ t, lang }) {
         </button>
       </div>
 
-      {/* step 상태에 따라 해당 모달만 렌더링 */}
+      {/* =========================================================
+          [8. 조건부 하위 모달 연쇄 인터록 렌더링 시스템 파트 (State 분기)]
+          ========================================================= */}
 
-      {/* 1단계: 언어 선택 모달 */}
+      {/* 1단계: 개발 코딩 언어 선택 모달 디렉토리 */}
       {step === 'lang' && (
         <LangModal
           t={t}
           onClose={closeAll}
           onSelect={(lang) => {
-            setSelectedLang(lang);
-            setStep('level'); // 언어 선택 후 난이도 선택으로 이동
+            setSelectedLang(lang); // 'java' 등 선택값 저장
+            setStep('level');      // 보관 완료 후 즉시 다음 단계인 '난이도 선택'창 스위치 격상
           }}
         />
       )}
 
-      {/* 2단계: 난이도 선택 모달 */}
+      {/* 2단계: 난이도 설정 모달 디렉토리 */}
       {step === 'level' && (
         <LevelModal
           t={t}
           onClose={closeAll}
-          onBack={() => setStep('lang')} // 이전 버튼 누르면 언어 선택으로 돌아감
+          onBack={() => setStep('lang')} // 이전 버튼 클릭 시 역방향 언어선택 화면 리턴 백 기믹
           onSelect={(level) => {
-            setSelectedLevel(level);
-            setStep('chapter'); // 난이도 선택 후 챕터 선택으로 이동
+            setSelectedLevel(level);   // 'basic', 'mid' 등 보관
+            setStep('chapter');        // 완료 후 즉시 다음 단계인 '챕터(단원) 선택'창 격상
           }}
         />
       )}
 
-      {/* 3단계: 챕터 선택 모달 */}
+      {/* 3단계: 세부 단원(챕터) 마이그레이션 모달 디렉토리 */}
       {step === 'chapter' && (
         <ChapterModal
           t={t}
-          level={selectedLevel}
-          progress={progress}
+          level={selectedLevel}        // 앞서 선택해놓은 난이도 값을 넘겨 해당 챕터 그룹만 한정 노출 유도
+          progress={progress}          // 집계 완료된 진도율 퍼센트 데이터 바인딩
           onClose={closeAll}
-          onBack={() => setStep('level')} // 이전 버튼 누르면 난이도 선택으로 돌아감
+          onBack={() => setStep('level')}
           onSelect={(chapter) => {
-            setSelectedChapter(chapter);
-            setStep('setting'); // 챕터 선택 후 퀴즈 설정으로 이동
+            setSelectedChapter(chapter); // 최종 공부할 단원 넘버 등록
+            setStep('setting');          // 마지막 단계인 '문항 세부 커스텀 설정'창 격상
           }}
         />
       )}
 
-      {/* 4단계: 퀴즈 설정 모달 */}
+      {/* 4단계: 퀴즈 최종 분배 조율 모달 디렉토리 */}
       {step === 'setting' && (
         <QuizSettingModal
           t={t}
           onClose={closeAll}
-          onBack={() => setStep('chapter')} // 이전 버튼 누르면 챕터 선택으로 돌아감
+          onBack={() => setStep('chapter')}
           onStart={(settings) => {
-            closeAll();
-            // 퀴즈 시작 - 설정값과 챕터 정보를 가지고 /play 페이지로 이동
+            closeAll(); // 모달 청소
+            // [최종 폭주 출발] 조립 완료된 모든 커스텀 세팅값(문항수, 비율, 단원 번호)을 보따리에 가득 실어
+            // 본격적인 코딩 문제 풀이 전용 컴포넌트 페이지인 '/play' 경로로 유저를 로켓 발사시킵니다.
             navigate('/play', { state: { ...settings, chapter: selectedChapter } });
           }}
         />
       )}
 
+      {/* 전역 가이드라인 투어 모달 레이어 컴포넌트 실시간 탑재부 */}
       {tutorialStep != null && (
         <HomeCoachmark
           t={t}
           step={tutorialStep}
           onNext={() => {
+            // 마지막 인덱스 단계에 다다르면 최종 수료 완료 처리, 아직 남았다면 다음 번호로 레벨업 카운트
             if (tutorialStep >= TUTORIAL_STEPS.length - 1) finishTutorial();
             else setTutorialStep((s) => s + 1);
           }}
@@ -552,12 +554,16 @@ export function Home({ t, lang }) {
   );
 }
 
-// 언어 선택 모달 컴포넌트
+// =========================================================
+// [9. 하위 독립 보조 컴포넌트 폼 모음 (Modals 포메이션)]
+// =========================================================
+
+// (1) LangModal: 학습하려는 핵심 언어를 필터링 고르는 카드 창
 function LangModal({ t, onClose, onSelect }) {
   const langs = [
     { id: 'java', label: 'Java', emoji: '☕', ready: true },
-    { id: 'python', label: 'Python', emoji: '🐍', ready: false }, // 준비중
-    { id: 'c', label: 'C언어', emoji: '⚙️', ready: false },       // 준비중
+    { id: 'python', label: 'Python', emoji: '🐍', ready: false }, // 시스템 확장용 대기 가드식
+    { id: 'c', label: 'C언어', emoji: '⚙️', ready: false },       // 시스템 확장용 대기 가드식
   ];
 
   return (
@@ -570,9 +576,9 @@ function LangModal({ t, onClose, onSelect }) {
             <div
               key={lang.id}
               className="chapter-item"
-              // 준비중인 언어는 클릭 불가 (opacity 0.5, cursor not-allowed)
+              // [안전 설계] 아직 완성되지 않은 공사중 언어 아이템은 투명도를 0.5로 낮추고 마우스 포인터를 금지 마크로 봉쇄합니다.
               style={{ opacity: lang.ready ? 1 : 0.5, cursor: lang.ready ? 'pointer' : 'not-allowed', justifyContent: 'space-between' }}
-              onClick={() => lang.ready && onSelect(lang.id)}
+              onClick={() => lang.ready && onSelect(lang.id)} // 준비 완료된 코어 패키지만 선택 클릭 이벤트 개방
             >
               <span className="ch-title">{lang.emoji} {lang.label}</span>
               {!lang.ready && <span style={{ fontSize: 12, color: '#aaa' }}>준비중</span>}
@@ -584,7 +590,7 @@ function LangModal({ t, onClose, onSelect }) {
   );
 }
 
-// 난이도 선택 모달 컴포넌트
+// (2) LevelModal: 학습 레벨(초급🌱/중급🌿/고급🌳)의 깊이를 다루는 설정 창
 function LevelModal({ t, onClose, onBack, onSelect }) {
   const levels = [
     { id: 'basic', label: t('level_basic'), emoji: '🌱' },
@@ -614,9 +620,9 @@ function LevelModal({ t, onClose, onBack, onSelect }) {
   );
 }
 
-// 챕터 선택 모달 컴포넌트
+// (3) ChapterModal: 선택한 난이도 내 배정된 단원을 탐색하고 개별 진도 성적표(Progress)를 막대로 그려주는 창
 function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
-  // 선택한 난이도에 해당하는 챕터 목록 가져오기
+  // JAVA_CHAPTERS 오브젝트 매핑 테이블에서 사용자가 고른 레벨에 부합하는 배열( basic | mid | adv )을 실시간 적출합니다.
   const chapters = JAVA_CHAPTERS[level] || [];
 
   return (
@@ -632,7 +638,7 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
               onClick={() => onSelect(ch.id)}
             >
               <span className="ch-title">{t(ch.key)}</span>
-              {/* 챕터별 진도율 프로그레스바 */}
+              {/* 챕터 정면에 바짝 붙어있는 미니 게이지 바 컴포넌트: 사용자가 쌓아놓은 진도 퍼센트(`0~100%`) 만큼 가로 채우기 가동 */}
               <div className="progress-bar-container">
                 <div className="progress-bar" style={{ width: `${progress[ch.id] || 0}%` }}></div>
               </div>
@@ -645,10 +651,10 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
   );
 }
 
-// 퀴즈 설정 모달 컴포넌트
+// (4) QuizSettingModal: 주관식/객관식 출제 문항 가중치 조율 슬라이더 바 및 총 문제 수 인풋 수렴 최종 가동 창
 function QuizSettingModal({ t, onClose, onBack, onStart }) {
-  const [ratio, setRatio] = useState(50);           // 객관식/주관식 비율 (기본 50:50)
-  const [count, setCount] = useState(10);           // 문제 수 (기본 10개)
+  const [ratio, setRatio] = useState(50); // 슬라이더 제어용 임시 비율 상태 (기본 하프 앤 하프인 50% 세팅)
+  const [count, setCount] = useState(10); // 풀고 싶은 퀴즈 문항 누적 개수 타겟 컴포넌트 상태 (기본 10개)
 
   return (
     <div className="modal-overlay" style={{ display: 'flex' }}>
@@ -656,21 +662,22 @@ function QuizSettingModal({ t, onClose, onBack, onStart }) {
         <button className="close-btn" onClick={onClose}>&times;</button>
         <h2 className="modal-header">{t('modal_quiz_title')}</h2>
         <div className="setting-form">
-          {/* 객관식/주관식 비율 슬라이더 */}
+          {/* 배율 컨트롤용 슬라이더 블록 */}
           <div className="setting-group">
             <label>{t('quiz_ratio')}</label>
             <div className="range-slider-wrapper">
+              {/* 슬라이더 인풋 핸들을 쥐고 양옆으로 슬라이드 하면 객관식과 주관식 비율 수치가 도합 100에 맞게 실시간 대칭 조절됨 */}
               <span><span>{t('quiz_obj')}</span> {ratio}%</span>
               <input type="range" min="0" max="100" step="10" value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
               <span><span>{t('quiz_subj')}</span> {100 - ratio}%</span>
             </div>
           </div>
-          {/* 문제 수 입력 */}
+          {/* 문항 수 컨트롤용 넘버 입력 폼 */}
           <div className="setting-group">
             <label>{t('quiz_count')}</label>
             <input type="number" min="1" max="20" value={count} onChange={(e) => setCount(Number(e.target.value))} className="setting-input" />
           </div>
-          {/* 퀴즈 시작 버튼 - 설정값을 onStart에 전달 */}
+          {/* 최종 관문: 축적 완료된 팩(ratio, count)을 담은 채로 런타임 출발 스위치 트리거 실행 */}
           <button
             className="clay-submit"
             onClick={() => onStart({ ratio, count })}
