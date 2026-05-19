@@ -475,8 +475,8 @@ export function Quiz({ t, params }) {
 
         // 5. 🎯 [UI 공간 데이터 바인딩 직결 매핑 + type 강제 가드]
         const mappedList = mergedList.map(p => {
-          // code_level별 백업 기본 템플릿 코드 정의 (DB가 비어있을 경우 대비 예외 가드)
-          let defaultTemplate = `public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요 (Level ${p.code_level || 1})\n    }\n}`;
+          // DB에 템플릿 코드가 없으면 레벨별로 기본 뼈대를 만들어줌
+          let defaultTemplate = `public class Main {\n    public static void main(String[] args) {\n        // Level ${p.code_level || 1} 뼈대 코드\n    }\n}`;
           if (p.code_level === 3) {
             defaultTemplate = `public class Solution {\n    public void solution() {\n        // [Level 3] 조건에 맞춰 메소드 내부를 완성하세요\n    }\n}`;
           } else if (p.code_level === 5) {
@@ -501,7 +501,7 @@ export function Quiz({ t, params }) {
             type: p.type || 'coding', // ⭐ [버그 해결] DB의 type이 비어있으면 강제로 에디터 모드('coding') 주입!
             difficulty: p.code_level === 1 ? '기초' : p.code_level === 5 ? '고급' : '중급', 
             // 🎯 핵심: DB의 template_code를 우선순위로 두고, 없으면 레벨별 기본 가이드 구조 주입
-            template: p.template_code && p.template_code.trim() !== '' ? p.template_code : defaultTemplate, 
+            template: finalTemplate, 
             answer: p.answer || '', // ⭐ Supabase 정답 문자열 명시적 바인딩
             expectedExample: p.expected_example || p.answer || ''
           };
@@ -519,13 +519,13 @@ export function Quiz({ t, params }) {
 
   // 문제 인덱스 스위칭 훅 (문제가 바뀔 때마다 해당 level의 template을 에디터에 주입)
   useEffect(() => {
-    if (quizList.length === 0) return;
-    const currentProblem = quizList[currentIndex];
-    setIsSubmitted(false);
-    setSelectedOption(null);
-    
-    // 🎯 동적 바인딩: 레벨별로 매핑 완료된 템플릿(template_code) 내용을 에디터(codeValue)에 주입합니다!
-    setCodeValue(currentProblem.template || '');
+  if (quizList.length === 0) return;
+  const currentProblem = quizList[currentIndex];
+  setIsSubmitted(false);
+  setSelectedOption(null);
+  
+  // 🎯 이 부분을 수정!
+  setCodeValue(currentProblem.template || '');
     
     setTermOutput([
       { type: 'system', text: '> Chickode IDE Console v1.0.0' },
@@ -617,59 +617,36 @@ export function Quiz({ t, params }) {
   const addTermLog = (msg, type = 'system') =>
     setTermOutput((prev) => [...prev, { type, text: `> ${msg}` }]);
 
-  const handleSendChat = async (message = null, chipKeyword = null) => {
-    const text = message !== undefined && message !== null && String(message).trim() !== ''
-        ? String(message).trim()
-        : chatInput.trim();
-    if (!text) return;
-    setChatInput('');
+  // handleSendChat 함수 내부 교체
+const handleSendChat = async (message = null, chipKeyword = null) => {
+  const text = message || chatInput.trim();
+  if (!text) return;
+  setChatInput('');
+  
+  const currentProblem = quizList[currentIndex];
+  setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: '생각 중이야 삐약... 🐥', thinking: true }]);
+  
+  try {
+    // 🎯 백엔드 서버로 요청 전송
+    const response = await fetch('http://127.0.0.1:8000/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_question: text,
+        user_code: codeValue,
+        problem_context: `${currentProblem.title}: ${currentProblem.desc}`,
+        history: chatHistory.map(h => ({ role: h.role === 'bot' ? 'assistant' : 'user', text: h.text }))
+      })
+    });
+
+    const data = await response.json();
     
-    const currentProblem = quizList[currentIndex];
-    
-    const thinkingText =
-      persona === 'racer' ? '잠깐만! 엔진 예열 중... 🏍️'
-      : persona === 'prof' ? '제출된 코드의 논리 구조 분석 중... 🎓'
-      : persona === 'church' ? '상우 님을 위해 골똘히 고민하고 있어요~ 🙏'
-      : '생각 중이야 삐약... 🐥';
-      
-    setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: thinkingText, thinking: true }]);
-    
-    try {
-      let systemInstruction = `너는 자바(Java) 초보자를 위한 친절한 코딩 교육 멘토 플랫폼 'CHICKODE'의 AI 튜터이다.
-사용자의 현재 문제 Context: 제목은 "${currentProblem?.title}", 조건은 "${currentProblem?.desc}" 이다.
-유저가 입력하는 현재 소스코드 상태: "${codeValue || '아직 코드를 작성하지 않음'}"
-
-[🔥 교육 핵심 지침 - 절대 준수]
-1. 절대 정답 소스코드를 한 번에 다 알려주거나 복사 붙여넣기 할 수 있는 완벽한 코드를 그대로 제공하지 마라.
-2. 사용자가 스스로 논리적 결함을 찾거나 문법을 추론할 수 있도록 유도하는 '단계별 힌트 및 디버깅 가이드'만 제공하라.
-3. 마크다운 형식을 사용하여 읽기 편하게 강조하라.`;
-
-      if (persona === 'racer') {
-        systemInstruction += `\n4. [말투 페르소나: 폭주족 선배] 성격이 급하고 와일드하며 열정적이다. 반말을 사용하며 "박아라", "달려라", "가자!" 같은 레이싱 용어를 섞어서 터프하지만 유쾌하게 힌트를 줘라.`;
-      } else if (persona === 'prof') {
-        systemInstruction += `\n4. [말투 페르소나: 대학교 교수님] 매우 정중하고 학술적이며 표준 명조체 느낌의 문체를 쓴다. 격식 있는 존댓말을 사용하며 "학습자님", "분석해 보십시오", "개념의 정의"를 강조하며 체계적으로 지도하라.`;
-      } else if (persona === 'church') {
-        systemInstruction += `\n4. [말투 페르소나: 다정한 교회 오빠] 한없이 부드럽고 따뜻하며 무한 칭찬 and 응원을 아끼지 않는다. "~해요", "괜찮아요 😊", "기도할게요" 느낌의 스윗한 어조로 사용자의 자존감을 극대화해 주어라.`;
-      } else {
-        systemInstruction += `\n4. [말투 페르소나: 기본 병아리 선배] 귀엽고 친근한 선배다. 문장 끝마다 "~삐약!", "~했어 삐약?"을 반드시 붙여 귀여운 메카니즘을 극대화하라.`;
-      }
-
-      const response = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022', 
-        max_tokens: 1000,
-        system: systemInstruction,
-        messages: [{ role: 'user', content: text }]
-      });
-
-      const aiResponseText = response.content[0].text;
-
-      setChatHistory((prev) => [
-        ...prev.filter((m) => !m.thinking),
-        { role: 'bot', text: aiResponseText }
-      ]);
-
-    } catch (err) {
-      console.error("Claude API 연동 에러 -> 폴백 가동:", err);
+    setChatHistory((prev) => [
+      ...prev.filter((m) => !m.thinking),
+      { role: 'bot', text: data.answer }
+    ]);
+  } catch (err) {
+    console.error("백엔드 연동 에러:", err);
       const kws = currentProblem?.keywords || [];
       const mock = `지금 네트워크 환경이 잠시 불안정해서 삐약이가 직접 비밀 명세를 꺼내왔어! 문제 「${currentProblem?.title}」의 핵심 부품인 「${kws[0] || '기초 용어'}」에 초점을 맞춰 코드를 고쳐볼까? (오프라인 모드)`;
       setChatHistory((prev) => [...prev.filter((m) => !m.thinking), { role: 'bot', text: mock }]);
