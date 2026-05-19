@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAttempts } from '../state/app-state';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_CHICKODE_SUPABASE_API_URL || 'http://localhost:8000';
 
 export function Note({ t }) {
   const [activeChapter, setActiveChapter] = useState('all');
