@@ -1,4 +1,4 @@
-/*문제 풀이 및 IDE 화면을 담당하는 컴포넌트입니다. 사용자가 코드를 직접 작성하거나 객관식 답안을 고르며
+﻿/*문제 풀이 및 IDE 화면을 담당하는 컴포넌트입니다. 사용자가 코드를 직접 작성하거나 객관식 답안을 고르며
   AI 튜터(병아리 선배)의 도움을 받아 학습할 수 있는 공간*/
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -9,7 +9,7 @@ import { addAttempt, getProfile } from '../state/app-state';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from "../constants.js";
+import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from "../data/constants.js";
 
 // ⭐ [연동] Anthropic SDK 공식 라이브러리 로드
 import Anthropic from '@anthropic-ai/sdk';
