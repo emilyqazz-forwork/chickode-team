@@ -91,7 +91,7 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
 
 /* --- [1] 메인 랜딩 화면 --- */
 .main-container {
-    background-image: url('/images/배경.png');
+    background-image: url('/images/bg1.png');
     background-size: cover;
     background-position: center;
     width: 100vw;
@@ -1109,7 +1109,7 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
 .mcq-option-btn.selected { background: #8d6e63; color: white; }
 
 .result-view {
-    width: 100vw; height: 100vh; background-image: url('/images/배경.png');
+    width: 100vw; height: 100vh; background-image: url('/images/bg1.png');
     background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center;
     position: absolute; top: 0; left: 0; z-index: 50;
 }
@@ -1254,7 +1254,7 @@ body, html {
 }
 
 body { 
-    background: url('/images/배경.png') no-repeat center center fixed; 
+    background: url('/images/bg1.png') no-repeat center center fixed; 
     background-size: cover; 
     font-family: 'Noto Sans KR', 'Jua', 'Malgun Gothic', sans-serif;
     font-weight: 800;

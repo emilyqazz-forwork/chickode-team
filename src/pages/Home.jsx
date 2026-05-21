@@ -274,11 +274,11 @@ const C_CHAPTERS = {
 
 
 const HOME_BACKGROUNDS = [
-  '/images/배경.png',
-  '/images/배경2.png',
-  '/images/배경3.png',
-  '/images/배경4.png',
-  '/images/배경5.png',
+  '/images/bg1.png',
+  '/images/bg2.png',
+  '/images/bg3.png',
+  '/images/bg4.png',
+  '/images/bg5.png',
 ];
 
 // TUTORIAL_STEPS: 홈 화면 진입 시 하이라이트할 타겟 DOM의 CSS 선택자(Selector) 및 설명 텍스트 번역 키 정의
@@ -809,10 +809,10 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
 
   return (
     <div className="modal-overlay" style={{ display: 'flex' }}>
-      <div className="modal-content">
+      <div className="modal-content" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
         <button className="close-btn" onClick={onClose}>&times;</button>
         <h2 className="modal-header">{t('modal_chapter_title')}</h2>
-        <div className="chapter-list">
+        <div className="chapter-list" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
           {chapters.map(ch => (
             <div
               key={ch.id}
