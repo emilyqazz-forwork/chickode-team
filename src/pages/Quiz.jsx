@@ -9,7 +9,7 @@ import { addAttempt, getProfile } from '../state/app-state';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from '../constants';
+import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from "../constants.js";
 
 // ⭐ [연동] Anthropic SDK 공식 라이브러리 로드
 import Anthropic from '@anthropic-ai/sdk';

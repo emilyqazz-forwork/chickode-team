@@ -1,6 +1,6 @@
 // --- [CHICKODE 전역 커리큘럼 정적 데이터 정의] ---
 
-// ========================================================
+// ============== ==========================================
 // 1. JAVA 커리큘럼 상수 (JAVA_CHAPTERS)
 // ========================================================
 export const JAVA_CHAPTERS = {
@@ -251,4 +251,11 @@ export const C_CHAPTERS = {
       units: ["c_adv_c3_u1", "c_adv_c3_u2", "c_adv_c3_u3", "c_adv_c3_u4"]
     }
   ]
+};
+
+// constants.js 파일 맨 최하단에 추가
+export const ALL_CHAPTERS = {
+  java: JAVA_CHAPTERS,
+  python: PYTHON_CHAPTERS,
+  c: C_CHAPTERS
 };
