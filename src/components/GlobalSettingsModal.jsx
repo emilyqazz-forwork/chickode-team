@@ -15,7 +15,7 @@ export function GlobalSettingsModal({ onClose, t, params, setParams }) {
 
   // --- [2. 상태 관리 정의] ---
   // 사용자가 '튜토리얼(가이드라인)을 다시 보지 않겠다'고 체크했는지 여부를 관리하는 로컬 상태
-  const [dontShowTutorial, setDontShowTutorial] = useState(true);
+  const [dontShowTutorial, setDontShowTutorial] = useState(false);
 
   // --- [3. 초기화 라이프사이클 - 로컬 스토리지 데이터 동기화] ---
   useEffect(() => {
@@ -27,7 +27,7 @@ export function GlobalSettingsModal({ onClose, t, params, setParams }) {
       setDontShowTutorial(seen); // 확인된 결과로 체크박스 상태를 동기화
     } catch {
       // 로컬 스토리지 접근 오류(보안 제한 등) 발생 시 대피용 기본값 세팅
-      setDontShowTutorial(true);
+      setDontShowTutorial(false);
     }
   }, []); // 컴포넌트가 처음 화면에 띄워질 때 단 한 번만 실행
 

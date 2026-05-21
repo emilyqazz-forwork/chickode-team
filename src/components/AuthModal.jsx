@@ -51,7 +51,7 @@ export function AuthModal({ onClose, t }) {
 
   return (
     <div className="modal-overlay" style={{ display: 'flex' }} onClick={onClose}>
-      <div className="modal-content" style={{ width: '420px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+      <div className="modal-content" style={{ width: '420px', textAlign: 'center', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>&times;</button>
         
         <div className="auth-tabs">

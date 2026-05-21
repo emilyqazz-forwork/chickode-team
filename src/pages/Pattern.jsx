@@ -17,49 +17,51 @@ export function Pattern({ t }) {
   const maxTypeTotal = Math.max(...Object.values(summary.byType).map(v => v.total), 1);
 
   return (
-    <div className="main-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflowY: 'auto', padding: '20px' }}>
-      <button onClick={() => navigate(-1)} style={{ position: 'absolute', top: '20px', left: '20px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '1.2rem', cursor: 'pointer', padding: '5px 12px' }}>
-        ❮ 뒤로가기
-      </button>
+    <div className="main-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflowY: 'auto', background: '#f5f0e8', color: '#3e2723', padding: '0', minHeight: '100vh', width: '100vw' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 999, width: '100%', display: 'flex', alignItems: 'center', padding: '10px 16px 10px 0', background: 'transparent', pointerEvents: 'none', boxSizing: 'border-box' }}>
+        <button type="button" onClick={() => navigate(-1)} style={{ position: 'fixed', top: '14px', left: '60px', zIndex: 100, background: '#5d4037', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', pointerEvents: 'auto' }}>
+          ❮ 뒤로가기
+        </button>
+      </div>
 
-      <h1 className="glow-title" style={{ fontSize: '2.5rem', marginBottom: '30px' }}>{t('nav_pattern')}</h1>
+      <h1 style={{ color: '#3e2723', fontSize: '1.8rem', padding: '10px 0 10px', marginBottom: '30px' }}>{t('nav_pattern')}</h1>
 
       {attempts.length === 0 ? (
-        <div style={{ color: 'white', textAlign: 'center', marginTop: '40px' }}>
+        <div style={{ color: '#3e2723', textAlign: 'center', marginTop: '40px' }}>
           <p style={{ fontSize: '1.2rem' }}>아직 풀어본 문제가 없어! 🐥</p>
-          <p style={{ opacity: 0.7 }}>문제를 풀면 여기에 패턴이 보여.</p>
+          <p style={{ color: '#8d6e63' }}>문제를 풀면 여기에 패턴이 보여.</p>
           <button className="clay-submit" onClick={() => navigate('/')} style={{ marginTop: '20px' }}>문제 풀러 가기</button>
         </div>
       ) : (
-        <div style={{ width: '100%', maxWidth: '700px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        <div style={{ width: '100%', maxWidth: '700px', display: 'flex', flexDirection: 'column', gap: '30px', paddingBottom: '40px' }}>
 
           {/* 전체 요약 */}
-          <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', color: 'white' }}>
+          <div style={{ background: 'white', color: '#3e2723', border: '1px solid #e0d6c8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderRadius: '16px', padding: '24px' }}>
             <h2 style={{ marginBottom: '16px', fontSize: '1.2rem' }}>📊 전체 요약</h2>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'space-around', textAlign: 'center' }}>
               <div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{summary.total}</div>
-                <div style={{ opacity: 0.7, fontSize: '0.85rem' }}>전체 시도</div>
+                <div style={{ color: '#8d6e63', fontSize: '0.85rem' }}>전체 시도</div>
               </div>
               <div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#55ff55' }}>{summary.correct}</div>
-                <div style={{ opacity: 0.7, fontSize: '0.85rem' }}>정답</div>
+                <div style={{ color: '#8d6e63', fontSize: '0.85rem' }}>정답</div>
               </div>
               <div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ff5555' }}>{summary.wrong}</div>
-                <div style={{ opacity: 0.7, fontSize: '0.85rem' }}>오답</div>
+                <div style={{ color: '#8d6e63', fontSize: '0.85rem' }}>오답</div>
               </div>
               <div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f9a825' }}>
                   {summary.total > 0 ? Math.round((summary.correct / summary.total) * 100) : 0}%
                 </div>
-                <div style={{ opacity: 0.7, fontSize: '0.85rem' }}>정답률</div>
+                <div style={{ color: '#8d6e63', fontSize: '0.85rem' }}>정답률</div>
               </div>
             </div>
           </div>
 
           {/* 챕터별 분석 */}
-          <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', color: 'white' }}>
+          <div style={{ background: 'white', color: '#3e2723', border: '1px solid #e0d6c8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderRadius: '16px', padding: '24px' }}>
             <h2 style={{ marginBottom: '16px', fontSize: '1.2rem' }}>📚 챕터별 분석</h2>
             {Object.entries(summary.byChapter).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([ch, data]) => {
               const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
@@ -67,9 +69,9 @@ export function Pattern({ t }) {
                 <div key={ch} style={{ marginBottom: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
                     <span>Ch{ch}. {chapterNames[ch] || `챕터 ${ch}`}</span>
-                    <span style={{ opacity: 0.8 }}>{data.correct}/{data.total} ({accuracy}%)</span>
+                    <span style={{ color: '#8d6e63' }}>{data.correct}/{data.total} ({accuracy}%)</span>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '8px', height: '14px', overflow: 'hidden' }}>
+                  <div style={{ background: '#ede8e0', borderRadius: '8px', height: '14px', overflow: 'hidden' }}>
                     <div style={{ width: `${(data.total / maxChapterTotal) * 100}%`, height: '100%', background: 'rgba(255,255,255,0.3)', borderRadius: '8px', position: 'relative' }}>
                       <div style={{ width: `${accuracy}%`, height: '100%', background: accuracy >= 70 ? '#55ff55' : accuracy >= 40 ? '#f9a825' : '#ff5555', borderRadius: '8px' }} />
                     </div>
@@ -80,7 +82,7 @@ export function Pattern({ t }) {
           </div>
 
           {/* 유형별 분석 */}
-          <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', color: 'white' }}>
+          <div style={{ background: 'white', color: '#3e2723', border: '1px solid #e0d6c8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderRadius: '16px', padding: '24px' }}>
             <h2 style={{ marginBottom: '16px', fontSize: '1.2rem' }}>🎯 유형별 분석</h2>
             {Object.entries(summary.byType).map(([type, data]) => {
               const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
@@ -88,9 +90,9 @@ export function Pattern({ t }) {
                 <div key={type} style={{ marginBottom: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
                     <span>{typeNames[type] || type}</span>
-                    <span style={{ opacity: 0.8 }}>{data.correct}/{data.total} ({accuracy}%)</span>
+                    <span style={{ color: '#8d6e63' }}>{data.correct}/{data.total} ({accuracy}%)</span>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '8px', height: '14px', overflow: 'hidden' }}>
+                  <div style={{ background: '#ede8e0', borderRadius: '8px', height: '14px', overflow: 'hidden' }}>
                     <div style={{ width: `${(data.total / maxTypeTotal) * 100}%`, height: '100%', background: 'rgba(255,255,255,0.3)', borderRadius: '8px', position: 'relative' }}>
                       <div style={{ width: `${accuracy}%`, height: '100%', background: accuracy >= 70 ? '#55ff55' : accuracy >= 40 ? '#f9a825' : '#ff5555', borderRadius: '8px' }} />
                     </div>
@@ -102,7 +104,7 @@ export function Pattern({ t }) {
 
           {/* 취약 챕터 */}
           {Object.entries(summary.byChapter).filter(([, d]) => d.total > 0 && (d.correct / d.total) < 0.5).length > 0 && (
-            <div style={{ background: 'rgba(255,85,85,0.15)', borderRadius: '16px', padding: '24px', color: 'white', border: '1px solid rgba(255,85,85,0.3)' }}>
+            <div style={{ background: '#fff5f5', color: '#3e2723', border: '1px solid #ffcccc', borderRadius: '16px', padding: '24px' }}>
               <h2 style={{ marginBottom: '12px', fontSize: '1.2rem' }}>⚠️ 취약 챕터</h2>
               {Object.entries(summary.byChapter)
                 .filter(([, d]) => d.total > 0 && (d.correct / d.total) < 0.5)

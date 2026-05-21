@@ -238,10 +238,10 @@ function pickCctvPool(persona, situation, lang) {
 }
 
 const TUTOR_PERSONA = {
-  default: { label: '병아리 선배 🐥', image: '/images/기본튜터.png' },
-  racer: { label: '폭주족 선배 🏍', image: '/images/폭주족.png' },
-  prof: { label: '교수님 🎓', image: '/images/교수님.png' },
-  church: { label: '교회오빠 ✝', image: '/images/교회오빠.png' },
+  default: { label: '병아리 선배 🐥', image: '/images/tutor.png' },
+  racer: { label: '폭주족 선배 🏍', image: '/images/racer.png' },
+  prof: { label: '교수님 🎓', image: '/images/prof.png' },
+  church: { label: '교회오빠 ✝', image: '/images/church.png' },
 };
 
 const CCTVCamChickImageStyle = {

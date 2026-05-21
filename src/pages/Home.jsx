@@ -10,12 +10,21 @@
 // 9. QuizSettingModal (문항 설정 모달) - settings
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getAttempts } from '../state/app-state';
 import { settingsButtonRef } from '../state/tutorial-refs';
 import { JAVA_CHAPTERS } from '../data/constants'; // constants.js 경로에 맞게 상대경로를 조절해 주세요.
 
 
+
+const HOME_BACKGROUNDS = [
+  '/images/bg1.png',
+  '/images/bg2.png',
+  '/images/bg3.png',
+  '/images/bg4.png',
+  '/images/bg5.png',
+];
 
 // TUTORIAL_STEPS: 홈 화면 진입 시 하이라이트할 타겟 DOM의 CSS 선택자(Selector) 및 설명 텍스트 번역 키 정의
 const TUTORIAL_STEPS = [
@@ -121,15 +130,17 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
     if (!placeBelow) tooltipTransform = 'translate(-50%, -100%)';
   }
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div className="home-coachmark-root" role="dialog" aria-modal="true">
       {/* 툴팁 및 가이드 전용 CSS 스타일 인젝션 */}
       <style>{`
-        .home-coachmark-root { position: fixed; inset: 0; z-index: 10050; }
-        .home-coachmark-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 10051; }
-        /* box-shadow 9999px을 뚫어 타겟을 제외한 온 화면을 어둡게 막는 스포트라이트 핵심 기술 */
-        .home-coachmark-spotlight { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); z-index: 10052; pointer-events: none; transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease; }
-        .home-coachmark-tooltip { position: fixed; z-index: 10053; width: min(320px, calc(100vw - 32px)); background: #fdf6e3; border: 3px solid #5d4037; border-radius: 16px; padding: 18px 18px 14px; box-shadow: 6px 6px 0 #3e2723; font-family: 'Jua', sans-serif; color: #3e2723; }
+        .home-coachmark-root { position: fixed; inset: 0; z-index: 999999; }
+        .home-coachmark-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 1000000; }
+        .home-coachmark-cutout-piece { position: fixed; background: rgba(0, 0, 0, 0.55); z-index: 1000000; }
+        .home-coachmark-spotlight { position: fixed; border-radius: 14px; box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.85), 0 0 24px 6px rgba(255, 213, 79, 0.55); z-index: 1000001; pointer-events: none; transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease; }
+        .home-coachmark-tooltip { position: fixed; z-index: 1000002; width: min(320px, calc(100vw - 32px)); background: #fdf6e3; border: 3px solid #5d4037; border-radius: 16px; padding: 18px 18px 14px; box-shadow: 6px 6px 0 #3e2723; font-family: 'Jua', sans-serif; color: #3e2723; }
         .home-coachmark-tooltip h3 { margin: 0 0 8px; font-size: 1.1rem; }
         .home-coachmark-tooltip p { margin: 0 0 14px; font-size: 0.95rem; line-height: 1.45; }
         .home-coachmark-actions { display: flex; justify-content: flex-end; gap: 8px; }
@@ -140,7 +151,42 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
       
       {/* 타겟 정보가 아예 없는 첫 단계는 온 화면을 막는 일반 암막 처리, 타겟이 잡히면 구멍이 뚫린 스포트라이트 활성화 */}
       {!spotlightStyle && <div className="home-coachmark-backdrop" />}
-      {spotlightStyle && <div className="home-coachmark-spotlight" style={spotlightStyle} />}
+      {spotlightStyle && (
+        <>
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{ top: 0, left: 0, width: '100vw', height: `${Math.max(0, spotlightStyle.top)}px` }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top + spotlightStyle.height}px`,
+              left: 0,
+              width: '100vw',
+              height: `calc(100vh - ${spotlightStyle.top + spotlightStyle.height}px)`,
+            }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top}px`,
+              left: 0,
+              width: `${Math.max(0, spotlightStyle.left)}px`,
+              height: `${spotlightStyle.height}px`,
+            }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top}px`,
+              left: `${spotlightStyle.left + spotlightStyle.width}px`,
+              width: `calc(100vw - ${spotlightStyle.left + spotlightStyle.width}px)`,
+              height: `${spotlightStyle.height}px`,
+            }}
+          />
+          <div className="home-coachmark-spotlight" style={spotlightStyle} />
+        </>
+      )}
       
       {/* 캡션 안내 텍스트 정보가 출력되는 귀여운 말풍선 카드 */}
       <div
@@ -160,7 +206,8 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -174,7 +221,8 @@ export function Home({ t, lang }) {
   const [progress, setProgress] = useState({});                 // 데이터베이스에서 집계해온 챕터별 실시간 진도율 퍼센트 맵 객체
   const [displayText, setDisplayText] = useState('');           // 메인 타이틀 자막에 한 글자씩 써내려가는 가변 텍스트 상태
   const [tutorialStep, setTutorialStep] = useState(null);       // 현재 진행 중인 코치마크 인덱스 상태 (null이면 미작동)
-  const [activeBg, setActiveBg] = useState(0);                   // 배경 레이어 전환용 인덱스 상태 (0 혹은 1)
+  const [activeBg, setActiveBg] = useState(0);                   // 현재 표시 중인 배경 인덱스 (0~4)
+  const [prevBg, setPrevBg] = useState(null);                  // 크로스페이드 직전 배경 인덱스
   const navigate = useNavigate();                               // 주소 경로 이동 처리용 React-Router 네비게이터 훅
 
   // 가이드라인 시청 최종 스케줄 마감 처리 콜백
@@ -203,13 +251,23 @@ export function Home({ t, lang }) {
     return () => window.clearTimeout(timer);
   }, [startTutorial]);
 
-  // 애니메이션 배경화면 스위칭 장치: 60초(1분)마다 activeBg 상태를 0과 1 사이로 뒤집어 페이드아웃 효과 구현
+  // 애니메이션 배경화면 스위칭 장치: 10초마다 배경1→2→3→4→5→1 순환
   useEffect(() => {
     const bgTimer = window.setInterval(() => {
-      setActiveBg((current) => (current === 0 ? 1 : 0));
-    }, 60000);
+      setActiveBg((current) => {
+        setPrevBg(current);
+        return (current + 1) % HOME_BACKGROUNDS.length;
+      });
+    }, 10000);
     return () => window.clearInterval(bgTimer);
   }, []);
+
+  // 크로스페이드 종료 후 이전 레이어 숨김 (opacity 0 레이어가 위에 남아 가리는 현상 방지)
+  useEffect(() => {
+    if (prevBg == null) return undefined;
+    const fadeDone = window.setTimeout(() => setPrevBg(null), 2100);
+    return () => window.clearTimeout(fadeDone);
+  }, [activeBg, prevBg]);
 
   // --- [5. 실시간 진도율 및 통계 정산 연산 파트] ---
   useEffect(() => {
@@ -268,7 +326,7 @@ export function Home({ t, lang }) {
         .home-page .home-bg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.35); z-index: 1; pointer-events: none; }
         .home-page > :not(.home-bg-layer):not(.home-bg-overlay):not(.modal-overlay) { position: relative; z-index: 2; }
         .home-page > .modal-overlay { z-index: 100; }
-        .home-page .btn-link img { mix-blend-mode: multiply; transition: transform 0.25s ease, filter 0.25s ease; }
+        .home-page .btn-link img { mix-blend-mode: multiply; transition: transform 0.25s ease, filter 0.25s ease; filter: drop-shadow(0 0 2px rgba(255,255,255,1)) drop-shadow(0 0 10px rgba(255,255,255,0.75)) drop-shadow(0 3px 12px rgba(0,0,0,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.8)); }
         /* 메뉴 마우스 오버 시 공중에 둥둥 뜨고 불타오르는 듯한(drop-shadow 삼중 연산) 네온 효과 정의 */
         .home-page .btn-link:hover img { animation: home-btn-float 1.4s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(255, 235, 130, 1)) drop-shadow(0 0 14px rgba(255, 210, 70, 0.9)) drop-shadow(0 0 26px rgba(255, 193, 7, 0.55)); }
         /* 메뉴 버튼을 마우스로 꾸욱 눌렀을 때 탄력 있게 팅겨오르는 팝업 애니메이션 바인딩 */
@@ -276,14 +334,29 @@ export function Home({ t, lang }) {
         .home-page .btn-link:hover .home-btn-label { text-shadow: 0 0 8px rgba(255, 220, 100, 0.95), 0 0 16px rgba(255, 193, 7, 0.5), 0 1px 0 rgba(255, 248, 216, 0.8); }
         .home-page .btn-link:active .home-btn-label { text-shadow: 0 0 10px rgba(255, 235, 140, 1), 0 0 20px rgba(255, 200, 60, 0.85), 0 1px 0 rgba(255, 248, 216, 0.8); }
         .home-page .btn-link { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .home-page .home-btn-label { font-family: 'Jua', sans-serif; font-size: 15px; font-weight: 700; color: #3e2723; text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8); pointer-events: none; }
+        .home-page .home-btn-label { font-family: 'Jua', sans-serif; font-size: 15px; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.7); pointer-events: none; }
         @keyframes home-btn-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes home-btn-pop { 0% { transform: translateY(0) scale(1); } 35% { transform: translateY(-16px) scale(1.06); } 65% { transform: translateY(-10px) scale(1.03); } 100% { transform: translateY(-12px) scale(1.04); } }
       `}</style>
       
-      {/* 2초 동안 부드럽게 대칭 교차되는 디렉토리 크로스페이드 애니메이션 배경 레이어 컴포넌트 2개 배치 */}
-      <div className="home-bg-layer" style={{ backgroundImage: "url('/images/배경.png')", opacity: activeBg === 0 ? 1 : 0 }} />
-      <div className="home-bg-layer" style={{ backgroundImage: "url('/images/배경2.png')", opacity: activeBg === 1 ? 1 : 0 }} />
+      {/* 2초 동안 부드럽게 교차되는 크로스페이드 배경 레이어 5개 배치 */}
+      {HOME_BACKGROUNDS.map((src, index) => {
+        const isActive = activeBg === index;
+        const isPrev = prevBg === index;
+        const isVisible = isActive || isPrev;
+        return (
+          <div
+            key={src}
+            className="home-bg-layer"
+            style={{
+              backgroundImage: `url('${src}')`,
+              opacity: isActive ? 1 : 0,
+              visibility: isVisible ? 'visible' : 'hidden',
+              zIndex: isActive ? 2 : isPrev ? 1 : 0,
+            }}
+          />
+        );
+      })}
       <div className="home-bg-overlay" />
       
       <header className="header">
@@ -401,7 +474,7 @@ export function Home({ t, lang }) {
             if (tutorialStep >= TUTORIAL_STEPS.length - 1) finishTutorial();
             else setTutorialStep((s) => s + 1);
           }}
-          onSkip={finishTutorial}
+          onSkip={() => setTutorialStep(null)}
         />
       )}
     </div>
@@ -481,10 +554,10 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
 
   return (
     <div className="modal-overlay" style={{ display: 'flex' }}>
-      <div className="modal-content">
+      <div className="modal-content" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
         <button className="close-btn" onClick={onClose}>&times;</button>
         <h2 className="modal-header">{t('modal_chapter_title')}</h2>
-        <div className="chapter-list">
+        <div className="chapter-list" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
           {chapters.map(ch => (
             <div
               key={ch.id}
@@ -508,7 +581,9 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
 // (4) QuizSettingModal: 주관식/객관식 출제 문항 가중치 조율 슬라이더 바 및 총 문제 수 인풋 수렴 최종 가동 창
 function QuizSettingModal({ t, onClose, onBack, onStart }) {
   const [ratio, setRatio] = useState(50); // 슬라이더 제어용 임시 비율 상태 (기본 하프 앤 하프인 50% 세팅)
-  const [count, setCount] = useState(10); // 풀고 싶은 퀴즈 문항 누적 개수 타겟 컴포넌트 상태 (기본 10개)
+  const [countInput, setCountInput] = useState('10'); // 입력창 표시용 문자열 (자유 입력)
+  const count = countInput === '' ? 0 : Number(countInput); // 숫자 변환 (빈 값은 0으로 처리)
+  const canStart = count >= 1 && count <= 10;
 
   return (
     <div className="modal-overlay" style={{ display: 'flex' }}>
@@ -516,26 +591,23 @@ function QuizSettingModal({ t, onClose, onBack, onStart }) {
         <button className="close-btn" onClick={onClose}>&times;</button>
         <h2 className="modal-header">{t('modal_quiz_title')}</h2>
         <div className="setting-form">
-          {/* 배율 컨트롤용 슬라이더 블록 */}
-          <div className="setting-group">
-            <label>{t('quiz_ratio')}</label>
-            <div className="range-slider-wrapper">
-              {/* 슬라이더 인풋 핸들을 쥐고 양옆으로 슬라이드 하면 객관식과 주관식 비율 수치가 도합 100에 맞게 실시간 대칭 조절됨 */}
-              <span><span>{t('quiz_obj')}</span> {ratio}%</span>
-              <input type="range" min="0" max="100" step="10" value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
-              <span><span>{t('quiz_subj')}</span> {100 - ratio}%</span>
-            </div>
-          </div>
           {/* 문항 수 컨트롤용 넘버 입력 폼 */}
           <div className="setting-group">
             <label>{t('quiz_count')}</label>
-            <input type="number" min="1" max="20" value={count} onChange={(e) => setCount(Number(e.target.value))} className="setting-input" />
+            <input type="number" min="1" max="10" value={countInput} onChange={(e) => setCountInput(e.target.value)} className="setting-input" />
+            {count < 1 && (
+              <p style={{ color: '#c62828', fontSize: '0.85rem', marginTop: '8px', marginBottom: 0 }}>{t('quiz_count_min_hint')}</p>
+            )}
+            {count > 10 && (
+              <p style={{ color: '#c62828', fontSize: '0.85rem', marginTop: '8px', marginBottom: 0 }}>{t('quiz_count_max_hint')}</p>
+            )}
           </div>
           {/* 최종 관문: 축적 완료된 팩(ratio, count)을 담은 채로 런타임 출발 스위치 트리거 실행 */}
           <button
             className="clay-submit"
-            onClick={() => onStart({ ratio, count })}
-            style={{ width: '100%', marginTop: '15px' }}
+            disabled={!canStart}
+            onClick={() => canStart && onStart({ ratio, count })}
+            style={{ width: '100%', marginTop: '15px', opacity: canStart ? 1 : 0.5, cursor: canStart ? 'pointer' : 'not-allowed' }}
           >
             {t('btn_start_quiz')}
           </button>
