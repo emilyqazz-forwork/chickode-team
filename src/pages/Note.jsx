@@ -102,7 +102,7 @@ export function Note({ t }) {
           <div className="book-title-tag">CHICKODE: 오답노트</div>
         </div>
         <div className="book-content">
-          <aside className="chapter-sidebar" style={{ minWidth: '160px' }}>
+          <aside className="chapter-sidebar" style={{ minWidth: '160px', paddingLeft: '16px' }}>
             <div className="sidebar-section-title">정렬</div>
             <div className="sort-btn-group">
               <button className={`sort-btn ${activeSort === 'newest' ? 'active' : ''}`} onClick={() => setActiveSort('newest')}>최신순</button>
