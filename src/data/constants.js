@@ -252,10 +252,3 @@ export const C_CHAPTERS = {
     }
   ]
 };
-
-// constants.js 파일 맨 최하단에 추가
-export const ALL_CHAPTERS = {
-  java: JAVA_CHAPTERS,
-  python: PYTHON_CHAPTERS,
-  c: C_CHAPTERS
-};
