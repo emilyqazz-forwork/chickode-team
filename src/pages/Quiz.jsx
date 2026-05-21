@@ -411,101 +411,53 @@ export function Quiz({ t, params }) {
   const bumpActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
   }, []);
-
-  // ⭐ [Supabase 데이터 스펙 매칭 최종 교정] 
-  useEffect(() => {
+// [Quiz.jsx] 내부 fetchProblemsFromSupabase 수정본
+useEffect(() => {
     async function fetchProblemsFromSupabase() {
-      const { count, ratio, chapter, difficulty } = settings;
+      const { count, chapter } = settings; 
 
       try {
-        let query = supabase.from('problems').select('*');
-        
-        // 1. [언어 필터] 대소문자 일치 (Java)
-        query = query.eq('language', 'Java');
+        // 1. 챕터 번호를 DB 검색용 패턴으로 변환 (1 -> c1, 2 -> c2...)
+        const chapterIdMap = {
+          1: 'c1',
+          2: 'c2',
+          3: 'c3',
+          4: 'c4'
+        };
+        const targetChapterId = chapterIdMap[chapter] || 'c3';
 
-        // 2. [단원명 한글 맵핑] 
-        let targetUnit = '변수와 자료형';
-        if (chapter === 2) targetUnit = '연산자와 표현식';
-        if (chapter === 3) targetUnit = '조건문과 반복문';
-        query = query.eq('unit', targetUnit);
-
-        // 3. 🎯 [완벽 교정] 확실하게 분리된 code_level 숫자로 쿼리 매칭!
-        let targetLevel = 1; 
-        if (difficulty === '중' || difficulty === '중급') targetLevel = 3;
-        if (difficulty === '상' || difficulty === '고급') targetLevel = 5;
-        query = query.eq('code_level', targetLevel);
+        // 2. 🎯 [핵심] ilike를 사용해 해당 챕터가 포함된 모든 문제 조회
+        // DB의 unit이 "java_basic_c3_u2"라면, "%_c3_%" 패턴으로 "c3"이 들어간 모든 문제를 가져옵니다.
+        let query = supabase.from('problems')
+          .select('*')
+          .eq('language', 'Java')
+          .ilike('unit', `%_${targetChapterId}_%`);
 
         const { data: pool, error } = await query;
         if (error) throw error;
 
-        let finalPool = pool || [];
+        // 3. 랜덤 섞기
+        let finalPool = (pool || []).sort(() => 0.5 - Math.random());
         
-        // 조건 만족 데이터 부재 시, 해당 단원의 기본 기초 풀로 자동 완화 폴백
         if (finalPool.length === 0) {
-          let fallbackQuery = supabase.from('problems').select('*').eq('language', 'Java').eq('unit', targetUnit);
-          const { data: fallbackPool } = await fallbackQuery;
-          finalPool = fallbackPool || [];
-        }
-
-        if (finalPool.length === 0) {
+          console.warn(`챕터 ${chapter} (패턴: ${targetChapterId})에 등록된 문제가 없습니다.`);
           setQuizList([]);
           return;
         }
 
-        // 4. 🎯 [핵심 비율 및 문제 개수 생성 알고리즘 예외 처리 보완 가드]
-        const objCount = Math.round(count * (ratio / 100));
-        const subCount = count - objCount;
+        // 4. 설정된 count만큼 추출 및 매핑
+        const selectedProblems = finalPool.slice(0, count);
 
-        // DB 특성을 고려하여 객관식과 코딩 문제를 엄격하게 분리
-        const objPool = finalPool.filter((p) => p.type === 'ox' || p.type === 'multiple').sort(() => 0.5 - Math.random());
-        const subPool = finalPool.filter((p) => p.template_code || p.type === 'coding').sort(() => 0.5 - Math.random());
-
-        const mergedList = [];
-        
-        // 객관식 풀에 데이터가 존재할 때만 분배 삽입
-        if (objPool.length > 0) {
-          for (let i = 0; i < objCount; i++) mergedList.push(objPool[i % objPool.length]);
-        }
-        
-        // 중요: 만약 DB에 객관식 문제가 0개라면 코딩 데이터(subPool)로 강제 전량 치환 수렴
-        if (subPool.length > 0) {
-          const actualNeededSubCount = objPool.length === 0 ? count : subCount;
-          for (let i = 0; i < actualNeededSubCount; i++) mergedList.push(subPool[i % subPool.length]);
-        }
-
-        // 5. 🎯 [UI 공간 데이터 바인딩 직결 매핑 + type 강제 가드]
-        const mappedList = mergedList.map(p => {
-          // DB에 템플릿 코드가 없으면 레벨별로 기본 뼈대를 만들어줌
-          let defaultTemplate = `public class Main {\n    public static void main(String[] args) {\n        // Level ${p.code_level || 1} 뼈대 코드\n    }\n}`;
-          if (p.code_level === 3) {
-            defaultTemplate = `public class Solution {\n    public void solution() {\n        // [Level 3] 조건에 맞춰 메소드 내부를 완성하세요\n    }\n}`;
-          } else if (p.code_level === 5) {
-            defaultTemplate = `// [Level 5] 고급 문제 - 클래스 구조 및 알고리즘 설계\npublic class Application {\n    \n}`;
-          }
-
-          // 1. 우선 임시 변수에 기존 템플릿 코드나 디폴트 템플릿을 담습니다.
-          let finalTemplate = p.template_code && p.template_code.trim() !== '' ? p.template_code : defaultTemplate;
-
-          // 2. [치환 가드 실행] 문자열 데이터라면 글자 형태의 \\n을 진짜 줄바꿈인 \n으로 컴파일합니다.
-          // ⭕ 수정 후: 어떤 형태의 꼬인 \n이 들어와도 3번 연속으로 걸러내 진짜 엔터로 치환합니다.
-          // ⭕ 방법 A 적용: 문자열 내에 쌩글자로 박힌 '\'와 'n' 조합을 강제로 엔터('\n')로 바꿉니다.
-          if (typeof finalTemplate === 'string') {
-            // 원래 줄바꿈 기호가 아니라 진짜 문자열 "\n" 자체를 타격하는 정규식입니다.
-            finalTemplate = finalTemplate.split('\\n').join('\n');
-          }
-
-          return {
-            ...p,
-            title: p.title || '기초 코딩 역량 테스트',
-            desc: p.description, 
-            type: p.type || 'coding', // ⭐ [버그 해결] DB의 type이 비어있으면 강제로 에디터 모드('coding') 주입!
-            difficulty: p.code_level === 1 ? '기초' : p.code_level === 5 ? '고급' : '중급', 
-            // 🎯 핵심: DB의 template_code를 우선순위로 두고, 없으면 레벨별 기본 가이드 구조 주입
-            template: finalTemplate, 
-            answer: p.answer || '', // ⭐ Supabase 정답 문자열 명시적 바인딩
-            expectedExample: p.expected_example || p.answer || ''
-          };
-        }).sort(() => 0.5 - Math.random());
+        const mappedList = selectedProblems.map(p => ({
+          ...p,
+          title: p.title || '코딩 문제',
+          desc: p.description || '',
+          type: p.type || 'coding',
+          difficulty: p.code_level === 1 ? '기초' : p.code_level === 5 ? '고급' : '중급',
+          template: p.template_code ? p.template_code.split('\\n').join('\n') : `public class Main { ... }`,
+          answer: p.answer || '',
+          expectedExample: p.expected_example || p.answer || ''
+        }));
 
         setQuizList(mappedList);
       } catch (err) {
@@ -516,35 +468,25 @@ export function Quiz({ t, params }) {
 
     fetchProblemsFromSupabase();
   }, [settings]);
-
-  // 문제 인덱스 스위칭 훅 (문제가 바뀔 때마다 해당 level의 template을 에디터에 주입)
-  useEffect(() => {
-  if (quizList.length === 0) return;
-  const currentProblem = quizList[currentIndex];
-  setIsSubmitted(false);
-  setSelectedOption(null);
   
-  // 🎯 이 부분을 수정!
-  setCodeValue(currentProblem.template || '');
+  // 문제 인덱스 스위칭 훅 (문제가 바뀔 때마다 해당 level의 template을 에디터에 주입)
+  // 🚨 이 useEffect를 찾아서 아래처럼 수정하세요
+  useEffect(() => {
+    if (quizList.length === 0) return;
+    const currentProblem = quizList[currentIndex];
+    setIsSubmitted(false);
+    setSelectedOption(null);
+    setCodeValue(currentProblem.template || '');
     
-    setTermOutput([
-      { type: 'system', text: '> Chickode IDE Console v1.0.0' },
-      { type: 'system', text: '> Ready for compilation...' },
-    ]);
+    setTermOutput([{ type: 'system', text: '> Chickode IDE Console v1.0.0' }, { type: 'system', text: '> Ready for compilation...' }]);
     setResultStatus(t('quiz_result_wait'));
     setResultColor('#d4d4d4');
-    lastCodeEditRef.current = null;
-    lastMcqRef.current = null;
-    lastActivityRef.current = Date.now();
-    setMouseInsideDoc(true);
-    setDocHidden(typeof document !== 'undefined' && document.hidden);
-    setCctvResultTone(null);
-    if (cctvResultClearTimeoutRef.current) {
-      clearTimeout(cctvResultClearTimeoutRef.current);
-      cctvResultClearTimeoutRef.current = null;
+    
+    // 💡 핵심 수정: 채팅이 비어있을 때만 튜터 메시지 노출 (기존 대화 보존)
+    if (chatHistory.length === 0) {
+      setChatHistory([{ role: 'bot', text: tutorOpeningMessage(currentProblem, persona) }]);
     }
-    setChatHistory([{ role: 'bot', text: tutorOpeningMessage(currentProblem, persona) }]);
-  }, [currentIndex, quizList]);
+  }, [currentIndex, quizList]); // chatHistory를 의존성에서 제거
 
   useEffect(() => {
     if (chatDisplayRef.current) chatDisplayRef.current.scrollTop = chatDisplayRef.current.scrollHeight;
@@ -653,16 +595,27 @@ const handleSendChat = async (message = null, chipKeyword = null) => {
     }
   };
 
-  // ⭐ [Supabase 실제 정답 동기화 채점 가드 블록]
   const handleSubmit = () => {
     bumpActivity();
-    if (!quizList[currentIndex]) return;
+    const currentProblem = quizList[currentIndex];
+    if (!currentProblem) return;
+
+    // 1. 이미 제출된 상태라면 다음 문제로 이동하거나 결과 페이지로 이동
     if (isSubmitted) {
-      if (currentIndex + 1 < quizList.length) setCurrentIndex(currentIndex + 1);
-      else navigate('/result', { state: { total: quizList.length, correct: correctCount } });
+      if (currentIndex + 1 < quizList.length) {
+        // 다음 문제로 이동
+        setCurrentIndex((prev) => prev + 1);
+        // 여기서 useEffect가 실행되어 다음 문제 데이터를 불러오므로
+        // setIsSubmitted(false)는 useEffect 내에서 처리되거나 여기서 호출해도 무방합니다.
+        setIsSubmitted(false); 
+      } else {
+        // 모든 문제 풀이 완료 -> 결과 페이지로 이동
+        navigate('/result', { state: { total: quizList.length, correct: correctCount } });
+      }
       return;
     }
-    const currentProblem = quizList[currentIndex];
+
+    // 2. 채점 로직
     let isCorrect = false;
 
     if (currentProblem.type === 'multiple' || currentProblem.type === 'ox') {
@@ -672,19 +625,16 @@ const handleSendChat = async (message = null, chipKeyword = null) => {
       }
       isCorrect = selectedOption === currentProblem.answer;
     } else {
-      // 🎯 [완벽 연동 기믹] 사용자가 프론트 에디터창에 입력한 소스코드 문자열(codeValue)과
-      // Supabase 정답(answer) 문자열의 공백 및 줄바꿈(\n, \r)을 완전히 제거하여 순수 논리 구조만 엄격하게 매칭 비교합니다!
       const userCodeClean = String(codeValue || '').replace(/\s+/g, '');
       const dbAnswerClean = String(currentProblem?.answer || '').replace(/\s+/g, '');
-      
       const isStringMatch = userCodeClean.includes(dbAnswerClean) && dbAnswerClean !== '';
       const isKeywordMatch = currentProblem.keywords && currentProblem.keywords.length > 0
         ? currentProblem.keywords.every((kw) => codeValue.includes(kw))
         : false;
-
       isCorrect = isStringMatch || isKeywordMatch;
     }
 
+    // 결과 저장
     addAttempt({
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       createdAt: Date.now(),
@@ -700,15 +650,12 @@ const handleSendChat = async (message = null, chipKeyword = null) => {
       isCorrect,
     });
 
+    // 3. UI 업데이트 및 제출 상태 변경
     setIsSubmitted(true);
     addTermLog('============================', 'system');
     addTermLog('Evaluating code...', 'system');
     
     setTimeout(() => {
-      if (cctvResultClearTimeoutRef.current) {
-        clearTimeout(cctvResultClearTimeoutRef.current);
-        cctvResultClearTimeoutRef.current = null;
-      }
       if (isCorrect) {
         setCorrectCount((c) => c + 1);
         addTermLog('Compile Success: 0 errors, 0 warnings', 'success');
@@ -716,23 +663,16 @@ const handleSendChat = async (message = null, chipKeyword = null) => {
         setResultStatus('결과: 🎉 정답이야!');
         setResultColor('#55ff55');
         setChatHistory((prev) => [...prev, { role: 'bot', text: '정답! 아주 잘했어 삐약! 👏' }]);
-        setIsChatOpen(true); 
+        setIsChatOpen(true);
         setCctvResultTone('correct');
       } else {
         addTermLog('Result: X 오답입니다!', 'error');
         setResultStatus('결과: ❌ 오답입니다!');
         setResultColor('#ff5555');
-        setChatHistory((prev) => [
-          ...prev,
-          { role: 'bot', text: '아쉽지만 오답이야... 다음 번엔 맞출 수 있을 거야! 🐥' },
-        ]);
-        setIsChatOpen(true); 
+        setChatHistory((prev) => [...prev, { role: 'bot', text: '아쉽지만 오답이야... 다음 번엔 맞출 수 있을 거야! 🐥' }]);
+        setIsChatOpen(true);
         setCctvResultTone('wrong');
       }
-      cctvResultClearTimeoutRef.current = window.setTimeout(() => {
-        setCctvResultTone(null);
-        cctvResultClearTimeoutRef.current = null;
-      }, 10000);
     }, 500);
   };
 
