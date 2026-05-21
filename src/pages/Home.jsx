@@ -10,6 +10,7 @@
 // 9. QuizSettingModal (문항 설정 모달) - settings
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getAttempts } from '../state/app-state';
 import { settingsButtonRef } from '../state/tutorial-refs';
@@ -272,6 +273,14 @@ const C_CHAPTERS = {
 };
 
 
+const HOME_BACKGROUNDS = [
+  '/images/배경.png',
+  '/images/배경2.png',
+  '/images/배경3.png',
+  '/images/배경4.png',
+  '/images/배경5.png',
+];
+
 // TUTORIAL_STEPS: 홈 화면 진입 시 하이라이트할 타겟 DOM의 CSS 선택자(Selector) 및 설명 텍스트 번역 키 정의
 const TUTORIAL_STEPS = [
   { selector: null, titleKey: 'tutorial_welcome_title', bodyKey: 'tutorial_welcome_body' }, // 첫 웰컴 인사 (스포트라이트 없음)
@@ -376,15 +385,17 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
     if (!placeBelow) tooltipTransform = 'translate(-50%, -100%)';
   }
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div className="home-coachmark-root" role="dialog" aria-modal="true">
       {/* 툴팁 및 가이드 전용 CSS 스타일 인젝션 */}
       <style>{`
-        .home-coachmark-root { position: fixed; inset: 0; z-index: 10050; }
-        .home-coachmark-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 10051; }
-        /* box-shadow 9999px을 뚫어 타겟을 제외한 온 화면을 어둡게 막는 스포트라이트 핵심 기술 */
-        .home-coachmark-spotlight { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); z-index: 10052; pointer-events: none; transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease; }
-        .home-coachmark-tooltip { position: fixed; z-index: 10053; width: min(320px, calc(100vw - 32px)); background: #fdf6e3; border: 3px solid #5d4037; border-radius: 16px; padding: 18px 18px 14px; box-shadow: 6px 6px 0 #3e2723; font-family: 'Jua', sans-serif; color: #3e2723; }
+        .home-coachmark-root { position: fixed; inset: 0; z-index: 999999; }
+        .home-coachmark-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 1000000; }
+        .home-coachmark-cutout-piece { position: fixed; background: rgba(0, 0, 0, 0.55); z-index: 1000000; }
+        .home-coachmark-spotlight { position: fixed; border-radius: 14px; box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.85), 0 0 24px 6px rgba(255, 213, 79, 0.55); z-index: 1000001; pointer-events: none; transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease; }
+        .home-coachmark-tooltip { position: fixed; z-index: 1000002; width: min(320px, calc(100vw - 32px)); background: #fdf6e3; border: 3px solid #5d4037; border-radius: 16px; padding: 18px 18px 14px; box-shadow: 6px 6px 0 #3e2723; font-family: 'Jua', sans-serif; color: #3e2723; }
         .home-coachmark-tooltip h3 { margin: 0 0 8px; font-size: 1.1rem; }
         .home-coachmark-tooltip p { margin: 0 0 14px; font-size: 0.95rem; line-height: 1.45; }
         .home-coachmark-actions { display: flex; justify-content: flex-end; gap: 8px; }
@@ -395,7 +406,42 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
       
       {/* 타겟 정보가 아예 없는 첫 단계는 온 화면을 막는 일반 암막 처리, 타겟이 잡히면 구멍이 뚫린 스포트라이트 활성화 */}
       {!spotlightStyle && <div className="home-coachmark-backdrop" />}
-      {spotlightStyle && <div className="home-coachmark-spotlight" style={spotlightStyle} />}
+      {spotlightStyle && (
+        <>
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{ top: 0, left: 0, width: '100vw', height: `${Math.max(0, spotlightStyle.top)}px` }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top + spotlightStyle.height}px`,
+              left: 0,
+              width: '100vw',
+              height: `calc(100vh - ${spotlightStyle.top + spotlightStyle.height}px)`,
+            }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top}px`,
+              left: 0,
+              width: `${Math.max(0, spotlightStyle.left)}px`,
+              height: `${spotlightStyle.height}px`,
+            }}
+          />
+          <div
+            className="home-coachmark-cutout-piece"
+            style={{
+              top: `${spotlightStyle.top}px`,
+              left: `${spotlightStyle.left + spotlightStyle.width}px`,
+              width: `calc(100vw - ${spotlightStyle.left + spotlightStyle.width}px)`,
+              height: `${spotlightStyle.height}px`,
+            }}
+          />
+          <div className="home-coachmark-spotlight" style={spotlightStyle} />
+        </>
+      )}
       
       {/* 캡션 안내 텍스트 정보가 출력되는 귀여운 말풍선 카드 */}
       <div
@@ -415,7 +461,8 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -429,7 +476,8 @@ export function Home({ t, lang }) {
   const [progress, setProgress] = useState({});                 // 데이터베이스에서 집계해온 챕터별 실시간 진도율 퍼센트 맵 객체
   const [displayText, setDisplayText] = useState('');           // 메인 타이틀 자막에 한 글자씩 써내려가는 가변 텍스트 상태
   const [tutorialStep, setTutorialStep] = useState(null);       // 현재 진행 중인 코치마크 인덱스 상태 (null이면 미작동)
-  const [activeBg, setActiveBg] = useState(0);                   // 배경 레이어 전환용 인덱스 상태 (0 혹은 1)
+  const [activeBg, setActiveBg] = useState(0);                   // 현재 표시 중인 배경 인덱스 (0~4)
+  const [prevBg, setPrevBg] = useState(null);                  // 크로스페이드 직전 배경 인덱스
   const navigate = useNavigate();                               // 주소 경로 이동 처리용 React-Router 네비게이터 훅
 
   // 가이드라인 시청 최종 스케줄 마감 처리 콜백
@@ -458,13 +506,23 @@ export function Home({ t, lang }) {
     return () => window.clearTimeout(timer);
   }, [startTutorial]);
 
-  // 애니메이션 배경화면 스위칭 장치: 60초(1분)마다 activeBg 상태를 0과 1 사이로 뒤집어 페이드아웃 효과 구현
+  // 애니메이션 배경화면 스위칭 장치: 10초마다 배경1→2→3→4→5→1 순환
   useEffect(() => {
     const bgTimer = window.setInterval(() => {
-      setActiveBg((current) => (current === 0 ? 1 : 0));
-    }, 60000);
+      setActiveBg((current) => {
+        setPrevBg(current);
+        return (current + 1) % HOME_BACKGROUNDS.length;
+      });
+    }, 10000);
     return () => window.clearInterval(bgTimer);
   }, []);
+
+  // 크로스페이드 종료 후 이전 레이어 숨김 (opacity 0 레이어가 위에 남아 가리는 현상 방지)
+  useEffect(() => {
+    if (prevBg == null) return undefined;
+    const fadeDone = window.setTimeout(() => setPrevBg(null), 2100);
+    return () => window.clearTimeout(fadeDone);
+  }, [activeBg, prevBg]);
 
   // --- [5. 실시간 진도율 및 통계 정산 연산 파트] ---
   useEffect(() => {
@@ -536,9 +594,24 @@ export function Home({ t, lang }) {
         @keyframes home-btn-pop { 0% { transform: translateY(0) scale(1); } 35% { transform: translateY(-16px) scale(1.06); } 65% { transform: translateY(-10px) scale(1.03); } 100% { transform: translateY(-12px) scale(1.04); } }
       `}</style>
       
-      {/* 2초 동안 부드럽게 대칭 교차되는 디렉토리 크로스페이드 애니메이션 배경 레이어 컴포넌트 2개 배치 */}
-      <div className="home-bg-layer" style={{ backgroundImage: "url('/images/배경.png')", opacity: activeBg === 0 ? 1 : 0 }} />
-      <div className="home-bg-layer" style={{ backgroundImage: "url('/images/배경2.png')", opacity: activeBg === 1 ? 1 : 0 }} />
+      {/* 2초 동안 부드럽게 교차되는 크로스페이드 배경 레이어 5개 배치 */}
+      {HOME_BACKGROUNDS.map((src, index) => {
+        const isActive = activeBg === index;
+        const isPrev = prevBg === index;
+        const isVisible = isActive || isPrev;
+        return (
+          <div
+            key={src}
+            className="home-bg-layer"
+            style={{
+              backgroundImage: `url('${src}')`,
+              opacity: isActive ? 1 : 0,
+              visibility: isVisible ? 'visible' : 'hidden',
+              zIndex: isActive ? 2 : isPrev ? 1 : 0,
+            }}
+          />
+        );
+      })}
       <div className="home-bg-overlay" />
       
       <header className="header">
