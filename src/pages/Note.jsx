@@ -68,15 +68,12 @@ export function Note({ t }) {
   };
 
   /*문제의 유형과 챕터의 성격에 따라 맞춤형 조언을 제공하여 스스로 생각하게 만듭니다*/
-  /*기능이 완벽하지 않아서 수정해야함*/
-  <div className=""></div>
   const getWhyWrong = (attempt) => {
     if (attempt.type === 'ox') return "O/X 문제는 개념을 정확히 이해해야 해! 관련 내용을 다시 읽어보고 왜 그 답인지 이유를 말해볼 수 있어?";
     if (attempt.type === 'multiple') return "객관식은 오답 선택지가 왜 틀렸는지도 분석해봐! 헷갈린 선택지를 다시 비교해봐.";
     if (attempt.type === 'coding') return "코드 작성 문제야. 키워드가 빠지진 않았는지, 문법 오류는 없는지 한 줄씩 확인해봐!";
     return "틀린 부분을 다시 한 번 점검해봐!";
   };
-  /*기능이 완벽하지 않아서 수정해야함*/
   const getTip = (attempt) => {
     const ch = attempt.chapter;
     const type = attempt.type;
@@ -96,14 +93,16 @@ export function Note({ t }) {
   const displayedList = getFilteredAndSorted();
 
   return (
-    <div className="note-container" style={{ paddingTop: '20px', position: 'relative' }}>
-      <button onClick={() => navigate(-1)} style={{ position: 'absolute', top: '20px', left: '20px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '1.2rem', cursor: 'pointer', padding: '5px 12px' }}>
-        ❮ 뒤로가기
-      </button>
+    <div className="note-container" style={{ paddingTop: '0px', position: 'relative', width: '100vw', minHeight: '100vh' }}>
       <main className="note-book">
-        <div className="book-title-tag">CHICKODE: 오답노트</div>
+        <div className="note-toolbar">
+          <button type="button" className="note-back-btn" onClick={() => navigate(-1)}>
+            ❮ 뒤로가기
+          </button>
+          <div className="book-title-tag">CHICKODE: 오답노트</div>
+        </div>
         <div className="book-content">
-          <aside className="chapter-sidebar">
+          <aside className="chapter-sidebar" style={{ minWidth: '160px' }}>
             <div className="sidebar-section-title">정렬</div>
             <div className="sort-btn-group">
               <button className={`sort-btn ${activeSort === 'newest' ? 'active' : ''}`} onClick={() => setActiveSort('newest')}>최신순</button>
@@ -131,13 +130,13 @@ export function Note({ t }) {
               {displayedList.map(a => (
                 <div key={a.id} className="wrong-card">
                   <div className="card-info">
-                    <div className="info-box">챕터<strong>{a.chapter ?? "-"}</strong></div>
-                    <div className="info-box">유형<strong>{formatType(a.type)}</strong></div>
-                    <div className="info-box">난이도<strong>{a.difficulty || "기본"}</strong></div>
-                    <div className="info-box" style={{color:'#d32f2f'}}>틀린 횟수<strong>{wrongCountMap[a.problemId || a.title] || 1}회</strong></div>
-                    <div className="info-box">일시<strong style={{fontSize:'0.8rem'}}>{new Date(a.createdAt ?? Date.now()).toLocaleString()}</strong></div>
+                    <div className="info-box" style={{ fontSize: '0.72rem' }}>챕터<strong>{a.chapter ?? "-"}</strong></div>
+                    <div className="info-box" style={{ fontSize: '0.72rem' }}>유형<strong>{formatType(a.type)}</strong></div>
+                    <div className="info-box" style={{ fontSize: '0.72rem' }}>난이도<strong>{a.difficulty || "기본"}</strong></div>
+                    <div className="info-box" style={{ color: '#d32f2f', fontSize: '0.72rem' }}>틀린 횟수<strong>{wrongCountMap[a.problemId || a.title] || 1}회</strong></div>
+                    <div className="info-box" style={{ fontSize: '0.72rem' }}>일시<strong style={{ fontSize: '0.68rem' }}>{new Date(a.createdAt ?? Date.now()).toLocaleString()}</strong></div>
                   </div>
-                  <div style={{marginBottom:'12px', fontWeight:'bold', fontSize:'1.05rem', color:'#3e2723', padding:'8px 0', borderBottom:'1px dashed #c8b89a'}}>
+                  <div style={{ marginBottom: '6px', fontWeight: 'bold', fontSize: '0.85rem', color: '#3e2723', padding: '4px 0', borderBottom: '1px dashed #c8b89a' }}>
                     {a.title ?? "문제"}
                   </div>
                   {a.type === 'multiple' || a.type === 'ox' ? (
@@ -147,8 +146,14 @@ export function Note({ t }) {
                     </div>
                   ) : (
                     <div className="code-compare">
-                      <div className="code-box"><span className="box-label">내가 쓴 답</span><pre><code>{a.userCode || "(없음)"}</code></pre></div>
-                      <div className="code-box"><span className="box-label">정답</span><pre><code>{a.expectedExample || "(없음)"}</code></pre></div>
+                      <div className="code-box" style={{ minHeight: '120px', height: 'auto', overflow: 'visible', maxHeight: 'none' }}>
+                        <span className="box-label">내가 쓴 답</span>
+                        <pre style={{ overflow: 'visible', maxHeight: 'none', margin: 0 }}><code>{a.userCode || "(없음)"}</code></pre>
+                      </div>
+                      <div className="code-box" style={{ minHeight: '120px', height: 'auto', overflow: 'visible', maxHeight: 'none' }}>
+                        <span className="box-label">정답</span>
+                        <pre style={{ overflow: 'visible', maxHeight: 'none', margin: 0 }}><code>{a.expectedExample || "(없음)"}</code></pre>
+                      </div>
                     </div>
                   )}
                   <div className="why-wrong-box"><span className="box-label">왜 틀렸을까?</span>{getWhyWrong(a)}</div>
@@ -164,11 +169,10 @@ export function Note({ t }) {
         </div>
       </main>
 
-  /*기능이 완벽하지 않아서 수정해야함*/
       {/* AI 질문 모달 */}
       {aiModal && (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={(e) => { if (e.target === e.currentTarget) setAiModal(null); }}>
-          <div className="modal-content" style={{ width: '480px', display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
+          <div className="modal-content" style={{ width: 'min(480px, 90vw)', display: 'flex', flexDirection: 'column', maxHeight: 'min(70vh, 600px)' }}>
             <button className="close-btn" onClick={() => setAiModal(null)}>&times;</button>
             <h2 className="modal-header">🐥 AI에게 질문</h2>
             <p style={{ fontSize: '0.85rem', color: '#aaa', marginBottom: '12px' }}>{aiModal.title}</p>
