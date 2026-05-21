@@ -581,7 +581,7 @@ export function Home({ t, lang }) {
         .home-page .home-bg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.35); z-index: 1; pointer-events: none; }
         .home-page > :not(.home-bg-layer):not(.home-bg-overlay):not(.modal-overlay) { position: relative; z-index: 2; }
         .home-page > .modal-overlay { z-index: 100; }
-        .home-page .btn-link img { mix-blend-mode: multiply; transition: transform 0.25s ease, filter 0.25s ease; }
+        .home-page .btn-link img { mix-blend-mode: multiply; transition: transform 0.25s ease, filter 0.25s ease; filter: drop-shadow(0 0 2px rgba(255,255,255,1)) drop-shadow(0 0 10px rgba(255,255,255,0.75)) drop-shadow(0 3px 12px rgba(0,0,0,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.8)); }
         /* 메뉴 마우스 오버 시 공중에 둥둥 뜨고 불타오르는 듯한(drop-shadow 삼중 연산) 네온 효과 정의 */
         .home-page .btn-link:hover img { animation: home-btn-float 1.4s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(255, 235, 130, 1)) drop-shadow(0 0 14px rgba(255, 210, 70, 0.9)) drop-shadow(0 0 26px rgba(255, 193, 7, 0.55)); }
         /* 메뉴 버튼을 마우스로 꾸욱 눌렀을 때 탄력 있게 팅겨오르는 팝업 애니메이션 바인딩 */
@@ -589,7 +589,7 @@ export function Home({ t, lang }) {
         .home-page .btn-link:hover .home-btn-label { text-shadow: 0 0 8px rgba(255, 220, 100, 0.95), 0 0 16px rgba(255, 193, 7, 0.5), 0 1px 0 rgba(255, 248, 216, 0.8); }
         .home-page .btn-link:active .home-btn-label { text-shadow: 0 0 10px rgba(255, 235, 140, 1), 0 0 20px rgba(255, 200, 60, 0.85), 0 1px 0 rgba(255, 248, 216, 0.8); }
         .home-page .btn-link { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .home-page .home-btn-label { font-family: 'Jua', sans-serif; font-size: 15px; font-weight: 700; color: #3e2723; text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8); pointer-events: none; }
+        .home-page .home-btn-label { font-family: 'Jua', sans-serif; font-size: 15px; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.7); pointer-events: none; }
         @keyframes home-btn-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes home-btn-pop { 0% { transform: translateY(0) scale(1); } 35% { transform: translateY(-16px) scale(1.06); } 65% { transform: translateY(-10px) scale(1.03); } 100% { transform: translateY(-12px) scale(1.04); } }
       `}</style>
@@ -729,7 +729,7 @@ export function Home({ t, lang }) {
             if (tutorialStep >= TUTORIAL_STEPS.length - 1) finishTutorial();
             else setTutorialStep((s) => s + 1);
           }}
-          onSkip={finishTutorial}
+          onSkip={() => setTutorialStep(null)}
         />
       )}
     </div>
