@@ -836,7 +836,9 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
 // (4) QuizSettingModal: 주관식/객관식 출제 문항 가중치 조율 슬라이더 바 및 총 문제 수 인풋 수렴 최종 가동 창
 function QuizSettingModal({ t, onClose, onBack, onStart }) {
   const [ratio, setRatio] = useState(50); // 슬라이더 제어용 임시 비율 상태 (기본 하프 앤 하프인 50% 세팅)
-  const [count, setCount] = useState(10); // 풀고 싶은 퀴즈 문항 누적 개수 타겟 컴포넌트 상태 (기본 10개)
+  const [countInput, setCountInput] = useState('10'); // 입력창 표시용 문자열 (자유 입력)
+  const count = countInput === '' ? 0 : Number(countInput); // 숫자 변환 (빈 값은 0으로 처리)
+  const canStart = count >= 1 && count <= 10;
 
   return (
     <div className="modal-overlay" style={{ display: 'flex' }}>
@@ -844,26 +846,23 @@ function QuizSettingModal({ t, onClose, onBack, onStart }) {
         <button className="close-btn" onClick={onClose}>&times;</button>
         <h2 className="modal-header">{t('modal_quiz_title')}</h2>
         <div className="setting-form">
-          {/* 배율 컨트롤용 슬라이더 블록 */}
-          <div className="setting-group">
-            <label>{t('quiz_ratio')}</label>
-            <div className="range-slider-wrapper">
-              {/* 슬라이더 인풋 핸들을 쥐고 양옆으로 슬라이드 하면 객관식과 주관식 비율 수치가 도합 100에 맞게 실시간 대칭 조절됨 */}
-              <span><span>{t('quiz_obj')}</span> {ratio}%</span>
-              <input type="range" min="0" max="100" step="10" value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
-              <span><span>{t('quiz_subj')}</span> {100 - ratio}%</span>
-            </div>
-          </div>
           {/* 문항 수 컨트롤용 넘버 입력 폼 */}
           <div className="setting-group">
             <label>{t('quiz_count')}</label>
-            <input type="number" min="1" max="20" value={count} onChange={(e) => setCount(Number(e.target.value))} className="setting-input" />
+            <input type="number" min="1" max="10" value={countInput} onChange={(e) => setCountInput(e.target.value)} className="setting-input" />
+            {count < 1 && (
+              <p style={{ color: '#c62828', fontSize: '0.85rem', marginTop: '8px', marginBottom: 0 }}>{t('quiz_count_min_hint')}</p>
+            )}
+            {count > 10 && (
+              <p style={{ color: '#c62828', fontSize: '0.85rem', marginTop: '8px', marginBottom: 0 }}>{t('quiz_count_max_hint')}</p>
+            )}
           </div>
           {/* 최종 관문: 축적 완료된 팩(ratio, count)을 담은 채로 런타임 출발 스위치 트리거 실행 */}
           <button
             className="clay-submit"
-            onClick={() => onStart({ ratio, count })}
-            style={{ width: '100%', marginTop: '15px' }}
+            disabled={!canStart}
+            onClick={() => canStart && onStart({ ratio, count })}
+            style={{ width: '100%', marginTop: '15px', opacity: canStart ? 1 : 0.5, cursor: canStart ? 'pointer' : 'not-allowed' }}
           >
             {t('btn_start_quiz')}
           </button>
