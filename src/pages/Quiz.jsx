@@ -81,7 +81,8 @@ export function Quiz({ t, params }) {
   const lastMcqRef = useRef(null);
   const editorTypingTimeoutRef = useRef(null);
   
-  // 📊 [행동 분석 트래킹 전용 상태 및 Refs]
+  // 📊 [신규 상태 선언] 동적 성과 지표 및 실시간 행동 트래킹 데이터셋
+  const [totalGoalCount, setTotalGoalCount] = useState(() => settings.count || 10);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [mouseOutCount, setMouseOutCount] = useState(0);
   const focusScoresRef = useRef([]);
@@ -138,7 +139,7 @@ export function Quiz({ t, params }) {
     fetchProblemsFromSupabase();
   }, [settings]);
   
-  // 문제 인덱스 스위칭 훅
+  // 문제 인덱스 스위칭 훅 (문제가 바뀔 때마다 해당 데이터 및 행동 분석 상태 초기화)
   useEffect(() => {
     if (quizList.length === 0) return;
     const currentProblem = quizList[currentIndex];
@@ -150,7 +151,7 @@ export function Quiz({ t, params }) {
     setResultStatus(t('quiz_result_wait'));
     setResultColor('#d4d4d4');
     
-    // 이탈 데이터 초기화
+    // 다음 문제로 넘어갈 때 미세 행동 요약 변수 초기화
     setTabSwitchCount(0);
     setMouseOutCount(0);
     focusScoresRef.current = [];
@@ -164,14 +165,13 @@ export function Quiz({ t, params }) {
     if (chatDisplayRef.current) chatDisplayRef.current.scrollTop = chatDisplayRef.current.scrollHeight;
   }, [chatHistory, isChatOpen]);
 
-  // 1초 타이머 + 실시간 k점수 아카이브 연동
+  // ⏱ 1초 주기의 백그라운드 타이머 내에서 실시간 집중도 척도(k점수)를 수집하여 배열에 아카이브
   useEffect(() => {
     if (!quizList.length) return;
     
     const id = setInterval(() => {
       setStudySeconds((s) => s + 1);
 
-      // 매초 감지되는 cctvK 집중 수치 적재
       const now = Date.now();
       const problem = quizList[currentIndex];
       if (problem) {
@@ -185,14 +185,14 @@ export function Quiz({ t, params }) {
           lastMcqAt: lastMcqRef.current,
           lastActivityAt: lastActivityRef.current,
         });
-        focusScoresRef.current.push(k);
+        focusScoresRef.current.push(k); // 최종 제출 시점의 k점수 평균 연산을 위해 누적 기록
       }
     }, 1000);
     
     return () => clearInterval(id);
   }, [quizList.length, currentIndex, docHidden, mouseInsideDoc, isEditorTyping]);
 
-  // 탭 이탈 누적 카운트 연동
+  // 👀 Visibility API 기반의 실시간 브라우저 탭 이탈률 트래킹 연동
   useEffect(() => {
     const onVis = () => {
       setDocHidden(document.hidden);
@@ -204,7 +204,7 @@ export function Quiz({ t, params }) {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  // 마우스 이탈 누적 카운트 연동
+  // 🖱 마우스 포인터의 작업 영역 이탈률(mouseleave) 실시간 트래킹 연동
   useEffect(() => {
     const el = document.documentElement;
     const leave = () => {
@@ -297,17 +297,54 @@ export function Quiz({ t, params }) {
     }
   };
 
+  // 🎯 [신규 기능] 학습자 맞춤형 AI 보강 챌린지 문제 동적 처방 및 세션 확장 연동
+  const triggerAiProblemGeneration = async () => {
+    addTermLog('학습자의 오답 분석 패턴을 기반으로 AI 맞춤형 챌린지 코딩 문제를 조립 중입니다 삐약... 🐥', 'system');
+    
+    try {
+      const currentProblem = quizList[currentIndex];
+      const currentChapterObj = settings.chapter || { title: "Java 기초" };
+      
+      const response = await fetch('http://127.0.0.1:8000/generate-problem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chapter_title: currentChapterObj.title || "Java 기초",
+          difficulty: currentProblem?.difficulty || "중급",
+          recent_wrong_concepts: currentProblem?.keywords || ["loop"]
+        })
+      });
+
+      if (!response.ok) throw new Error('API 서버 연결 실패');
+      
+      const aiProblem = await response.json();
+      
+      // 1. 기존 학습 목록 최하단에 생성된 AI 문제를 병합 주입
+      setQuizList((prev) => [...prev, aiProblem]);
+      
+      // 2. 📊 [성과도 수식 동기화] 동적 완수도 분모를 +1 실시간 증가시킴
+      setTotalGoalCount((prev) => prev + 1);
+      
+      addTermLog('성공: 삐약이가 새로운 챌린지 보완 코딩 문제를 처방했습니다! 퀴즈 리스트를 확인해봐! 🎉', 'success');
+    } catch (err) {
+      console.error("AI 문제 동적 생성 실패:", err);
+      addTermLog('실패: 네트워크 환경 문제로 챌린지 문제를 가동하지 못했습니다 삐약.', 'error');
+    }
+  };
+
   const handleSubmit = async () => {
     bumpActivity();
     const currentProblem = quizList[currentIndex];
     if (!currentProblem) return;
 
+    // 1. 이미 제출 완료된 경우 동적 완수도 범위에 맞춰 페이지 전환 이동 제어
     if (isSubmitted) {
-      if (currentIndex + 1 < quizList.length) {
+      if (currentIndex + 1 < totalGoalCount && currentIndex + 1 < quizList.length) {
         setCurrentIndex((prev) => prev + 1);
         setIsSubmitted(false); 
       } else {
-        navigate('/result', { state: { total: quizList.length, correct: correctCount } });
+        // AI가 부여한 동적 보완 영역까지 전체 마일스톤 완수 시 최종 리포트 대시보드로 이동
+        navigate('/result', { state: { total: totalGoalCount, correct: correctCount } });
       }
       return;
     }
@@ -330,13 +367,13 @@ export function Quiz({ t, params }) {
       isCorrect = isStringMatch || isKeywordMatch;
     }
 
-    // 📊 [행동 데이터] 평균 집중도 계산
+    // 📊 [행동 데이터] 누적 평균 몰입도 산출 연산
     const scoresArray = focusScoresRef.current;
     const avgFocusScore = scoresArray.length > 0
       ? Number((scoresArray.reduce((acc, val) => acc + val, 0) / scoresArray.length).toFixed(2))
       : 4.00;
 
-    // 🎯 [Supabase 신규 submissions 스키마 전송]
+    // 🎯 [Supabase 동적 submissions 스키마에 최종 요약 저장 및 전송]
     try {
       const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
       const userId = userPayload.id || null;
@@ -358,12 +395,12 @@ export function Quiz({ t, params }) {
       }]);
 
       if (error) throw error;
-      console.log("Supabase submissions DB 기록 성공!");
+      console.log("Supabase submissions DB 기록 완료!");
     } catch (err) {
-      console.error("Supabase submissions DB 기록 에러:", err.message);
+      console.error("Supabase submissions DB 기록 오류:", err.message);
     }
 
-    // 로컬 상태 백업 보관용
+    // 로컬 디버깅 및 컴포넌트 내부 스냅숏 보존
     addAttempt({
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       createdAt: Date.now(),
@@ -400,6 +437,9 @@ export function Quiz({ t, params }) {
         setChatHistory((prev) => [...prev, { role: 'bot', text: '아쉽지만 오답이야... 다음 번엔 맞출 수 있을 거야! 🐥' }]);
         setIsChatOpen(true);
         setCctvResultTone('wrong');
+
+        // 🎯 [실시간 처방]: 최종 채점이 오답일 경우, AI 취약 저격형 챌린지 생성 함수를 동적 가동!
+        triggerAiProblemGeneration();
       }
     }, 500);
   };
@@ -543,12 +583,15 @@ export function Quiz({ t, params }) {
           <div style={{ fontSize: 12, color: '#5c3d2e', marginBottom: 6 }}>
             {getPersonaModeDisplay(persona)}
           </div>
+          {/* 📊 동적 분모 totalGoalCount를 완벽하게 연동한 학습 완수 성과 지표 렌더링 구역 */}
           <div className="quiz-progress-panel">
-            <div className="quiz-progress-label">{currentIndex + 1} / {quizList.length} 문제</div>
+            <div className="quiz-progress-label">
+              성과도: {Math.round((currentIndex / totalGoalCount) * 100)}% ({currentIndex} / {totalGoalCount} 문제 완료)
+            </div>
             <div className="progress-bar-container">
               <div
                 className="progress-bar"
-                style={{ width: `${Math.round(((currentIndex + 1) / quizList.length) * 100)}%` }}
+                style={{ width: `${Math.min(100, Math.round((currentIndex / totalGoalCount) * 100))}%` }}
               />
             </div>
           </div>
