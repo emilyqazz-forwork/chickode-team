@@ -106,7 +106,7 @@ export function Pattern({ t }) {
                   단일 문제를 풀 때 에디터 창을 이탈하여 포털로 전환한 빈도가 임계 가이드라인을 초과했습니다. 스스로 논리를 빌드하기 전 정답을 복제하려는 관성이 축적되었을 수 있습니다.
                 </p>
                 {hasTabHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4', maxHeight: '80px', overflowY: 'auto'  }}>
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.tab_switch ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
@@ -131,7 +131,7 @@ export function Pattern({ t }) {
                   문제 텍스트 독해 시 머무르는 Idle 타임이 극도로 짧고 문항당 평균 제출 오답수가 {stats.avgSubmits.toFixed(1)}회로 불안정합니다.
                 </p>
                 {hasTypingHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ffa726', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ffa726', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4', maxHeight: '80px', overflowY: 'auto' }}>
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.typing_frenzy ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
@@ -156,7 +156,7 @@ export function Pattern({ t }) {
                   마우스 포인터가 브라우저 가시 구역 밖으로 이탈하여 정지 상태를 유지하는 비율이 포착되었습니다. 집중의 맥락이 파탄 나 인지적 피로도가 가중될 수 있습니다.
                 </p>
                 {hasMouseHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4', maxHeight: '80px', overflowY: 'auto' }}>
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.mouse_wander ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
