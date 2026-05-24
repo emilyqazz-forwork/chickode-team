@@ -53,7 +53,7 @@ export function usePatternData() {
 
         // [Table 1] 문제 시도 이력 + [Table 2] CCTV 행동 로그 병렬 fetch
         const [attemptRes, behaviorRes] = await Promise.all([
-          supabase.from('user_attempts').select('*').eq('user_id', userId),
+          supabase.from('submissions').select('*').eq('user_id', userId),
           supabase.from('user_behavior_logs').select('*').eq('user_id', userId),
         ]);
 
