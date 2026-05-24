@@ -9,8 +9,6 @@ import { addAttempt, getProfile } from '../state/app-state';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
-// ⭐ [세션리스 설계] 클라이언트 단에서 물리 테이블 없이 고유 세션을 묶어줄 일회성 UUID 생성기 도입
-import { v4 as uuidv4 } from 'uuid'; 
 
 // 📂 [분리 완료] 복잡한 CCTV 데이터 및 실시간 감지 함수 가져오기
 import {
@@ -27,6 +25,19 @@ import {
   CCTVCamChickImageStyle
 } from '../data/cctvConstants';
 
+//  Vite 환경에서 호환되는 브라우저 내장 Web Crypto API로 대체합니다.
+const generateVirtualSessionId = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  // 구형 브라우저 환경을 위한 폴백(Fallback) 난수 발전기 작동
+  return 'session-xxxx-4xxx-yxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export function Quiz({ t, params }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,7 +46,7 @@ export function Quiz({ t, params }) {
 
   // 🛡️ [수정/설계] 컴포넌트 마운트 시 최초 1회만 고유 UUID를 발급하여 세션 ID로 삼습니다.
   // 이 가상 세션 ID는 user_behavior_logs와 submissions 테이블을 물리 변경 없이 논리적으로 묶어주는 열쇠가 됩니다.
-  const [virtualSessionId] = useState(() => uuidv4());
+  const [virtualSessionId] = useState(() => generateVirtualSessionId());
 
   const [persona, setPersona] = useState(() => readStoredPersona(params?.persona));
   const tutorPersona = getTutorPersona(persona);
