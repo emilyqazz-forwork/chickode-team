@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient'; 
 // 격리시킨 연산 유틸 및 상수 가져오기
 import { calculateLearningStats, PAST_STATS_BASELINE } from '../utils/scoring';
+import { StatSection } from '../components/pattern/StatSection';
 
 // CLAUDE_API_KEY 제거 — API 키는 Supabase Edge Function 서버에만 존재 (클라이언트 노출 방지)
 
@@ -178,65 +179,7 @@ export function Pattern({ t }) {
           </div>
 
           {/* SECTION 1: 다차원 정량 스탯 리포트 */}
-          <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>📈</span> 초보자 친화적 역량 성취 지표
-            </h2>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* 코드 구현력 게이지 */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
-                  <span style={{ fontWeight: 'bold' }}>💻 고유 소스코드 구현력 (Implementation)</span>
-                  <span style={{ fontWeight: 'bold' }}>
-                    {stats.implementation}점 
-                    <span style={{ color: (stats.implementation - PAST_STATS_BASELINE.implementation) >= 0 ? '#4caf50' : '#ef5350', fontSize: '0.8rem', marginLeft: '4px' }}>
-                      ▲ (전주대비 {((stats.implementation - PAST_STATS_BASELINE.implementation) >= 0 ? '+' : '') + (stats.implementation - PAST_STATS_BASELINE.implementation).toFixed(1)})
-                    </span>
-                  </span>
-                </div>
-                <div style={{ background: '#f5f0e8', height: '12px', borderRadius: '10px', overflow: 'hidden' }}>
-                  <div style={{ width: `${stats.implementation}%`, height: '100%', background: 'linear-gradient(90deg, #a5d6a7, #66bb6a)', borderRadius: '10px', transition: 'width 0.5s ease' }} />
-                </div>
-              </div>
-
-              {/* 개념 이해력 게이지 */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
-                  <span style={{ fontWeight: 'bold' }}>💡 개념구조 이해력 (Conceptual Capacity)</span>
-                  <span style={{ fontWeight: 'bold' }}>
-                    {stats.conceptual}점 
-                    <span style={{ color: (stats.conceptual - PAST_STATS_BASELINE.conceptual) >= 0 ? '#4caf50' : '#ef5350', fontSize: '0.8rem', marginLeft: '4px' }}>
-                      ▲ (전주대비 {((stats.conceptual - PAST_STATS_BASELINE.conceptual) >= 0 ? '+' : '') + (stats.conceptual - PAST_STATS_BASELINE.conceptual).toFixed(1)})
-                    </span>
-                  </span>
-                </div>
-                <div style={{ background: '#f5f0e8', height: '12px', borderRadius: '10px', overflow: 'hidden' }}>
-                  <div style={{ width: `${stats.conceptual}%`, height: '100%', background: 'linear-gradient(90deg, #90caf9, #42a5f5)', borderRadius: '10px', transition: 'width 0.5s ease' }} />
-                </div>
-              </div>
-
-              {/* 몰입력 게이지 */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
-                  <span style={{ fontWeight: 'bold' }}>👁️ 인지적 시선 몰입력 (Cognitive Focus)</span>
-                  <span style={{ fontWeight: 'bold' }}>
-                    {stats.focus}점 
-                    <span style={{ color: (stats.focus - PAST_STATS_BASELINE.focus) >= 0 ? '#4caf50' : '#ef5350', fontSize: '0.8rem', marginLeft: '4px' }}>
-                      ▲ (전주대비 {((stats.focus - PAST_STATS_BASELINE.focus) >= 0 ? '+' : '') + (stats.focus - PAST_STATS_BASELINE.focus).toFixed(1)})
-                    </span>
-                  </span>
-                </div>
-                <div style={{ background: '#f5f0e8', height: '12px', borderRadius: '10px', overflow: 'hidden' }}>
-                  <div style={{ width: `${stats.focus}%`, height: '100%', background: 'linear-gradient(90deg, #ffe082, #ffb74d)', borderRadius: '10px', transition: 'width 0.5s ease' }} />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '20px', padding: '14px', background: '#f1f8e9', borderRadius: '12px', border: '1px solid #dcedc8', fontSize: '0.85rem', color: '#33691e', lineHeight: '1.5' }}>
-              <strong>💡 엔진 종합 해설:</strong> 어려운 문항에서 빌드가 최종 실패했더라도 끝까지 도전을 지속한 제출 근성 수치가 연산 보정식에 반영되어, 단순 통계 대비 <strong>실제 소스코드 제어력이 탄탄하게 성장</strong>하고 있음을 증명합니다.
-            </div>
-          </div>
+          <StatSection stats={stats} />
 
           {/* SECTION 2: 난이도 비선형 가중치 보정 시계열 성장 곡선 */}
           <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
