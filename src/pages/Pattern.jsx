@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase'; 
+import { supabase } from '../supabaseClient'; 
 // 격리시킨 연산 유틸 및 상수 가져오기
 import { calculateLearningStats, PAST_STATS_BASELINE } from '../utils/scoring';
+
+// Vite 환경 변수에서 Claude API Key 바인딩 (프로젝트 설정에 따라 process.env.CHICKODE_CLAUDE_API_KEY 등으로 유연하게 변경 가능)
+const CLAUDE_API_KEY = import.meta.env?.VITE_CHICKODE_CLAUDE_API_KEY || process.env?.CHICKODE_CLAUDE_API_KEY || "";
 
 export function Pattern({ t }) {
   const navigate = useNavigate();
   
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState("코딩 병아리");
   const [stats, setStats] = useState({
     implementation: 0,
     conceptual: 0,
@@ -22,6 +26,18 @@ export function Pattern({ t }) {
     weakestChapter: 1
   });
 
+  // Claude 동적 처방 메시지 상태
+  const [prescriptions, setPrescriptions] = useState({
+    tab_switch: "",
+    typing_frenzy: "",
+    mouse_wander: ""
+  });
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState({
+    tab_switch: false,
+    typing_frenzy: false,
+    mouse_wander: false
+  });
+
   useEffect(() => {
     async function fetchLearningData() {
       try {
@@ -29,6 +45,18 @@ export function Pattern({ t }) {
 
         const { data: { user } } = await supabase.auth.getUser();
         const userId = user?.id; 
+
+        if (userId) {
+          // profiles 테이블에서 실제 유저의 이름 조회
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', userId)
+            .single();
+          if (profile?.display_name) {
+            setDisplayName(profile.display_name);
+          }
+        }
 
         // [Table 1] 문제 시도 이력 로드
         let attemptQuery = supabase.from('user_attempts').select('*');
@@ -49,6 +77,9 @@ export function Pattern({ t }) {
           // 분리한 유틸리티 엔진 호출을 통한 스탯 바인딩
           const computedStats = calculateLearningStats(attemptData, bLogs);
           setStats(computedStats);
+
+          // 다차원 거동 기반 습관 체크 후 필요시 Claude API 동적 호출 트리거
+          triggerAIPrescriptions(computedStats, bLogs);
         }
       } catch (error) {
         console.error("데이터 바인딩 도중 오류 발생:", error);
@@ -59,6 +90,85 @@ export function Pattern({ t }) {
 
     fetchLearningData();
   }, []);
+
+  // Claude Messages API 호출 및 동적 처방문 스트리밍 생성 모듈
+  const fetchClaudePrescription = async (habitType, computedStats) => {
+    if (!CLAUDE_API_KEY) {
+      console.warn("⚠️ API Key가 누락되었구! .env 파일 내 CHICKODE_CLAUDE_API_KEY 선언을 확인해줘.");
+      return "🔑 API Key 설정이 되어있지 않아 처방전을 불러올 수 없구.. 선배에게 알려줘!";
+    }
+
+    let habitContext = "";
+    if (habitType === "tab_switch") {
+      habitContext = "에디터 창을 이탈해 포털로 화면을 전환(Ctrl+Tab, 복사/붙여넣기)한 빈도가 40% 이상으로 극도로 높은 편";
+    } else if (habitType === "typing_frenzy") {
+      habitContext = `문제를 깊이 읽지 않고 런타임 채점 버튼을 난타하며 즉흥적으로 해결하려 함 (평균 제출수 ${computedStats.avgSubmits.toFixed(1)}회, 합격률 ${(computedStats.passedCount / computedStats.totalCount * 100).toFixed(0)}%)`;
+    } else if (habitType === "mouse_wander") {
+      habitContext = "마우스 포인터가 브라우저 가시 영역 밖으로 이탈하여 대기 상태를 유지하는 시선 흐트러짐 비율이 30% 이상으로 높음";
+    }
+
+    const systemPrompt = `
+당신은 게임화 코딩 플랫폼 'Chickode(치코드)'의 귀엽고 똑똑한 AI 튜터 '병아리 선배'입니다.
+학습자의 나쁜 코딩 버릇을 교정하는 처방전을 200자 내외로 유머러스하면서도 따스하게 기술해 주세요.
+- 말투: "~구", "~해봐!", "~잖아!" 식의 '병아리 선배🐣' 전용 어조를 써서 친근하게 잔소리해야 합니다.
+- 텍스트 강조를 위해 <strong> 태그를 자연스럽게 섞어 작성해 주세요. (예: <strong>10초만 눈 디버깅</strong>해 봐!)
+`;
+
+    const userPrompt = `
+- 대상 학생: ${displayName}
+- 성적 스탯: 구현력 ${computedStats.implementation}점, 개념이해 ${computedStats.conceptual}점, 시선몰입 ${computedStats.focus}점
+- 감지된 나쁜 습관: [${habitContext}]
+
+이 학생의 정량 수치와 나쁜 습관 패턴에 정확히 핀포인트를 맞춘 따끔하고 실천적인 동적 교정 솔루션을 작성해줘!
+`;
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": CLAUDE_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+          "dangerouslyAllowBrowser": "true" // 브라우저 직호출 허용 설정
+        },
+        body: JSON.stringify({
+          model: "claude-3-5-flash-20241022",
+          max_tokens: 300,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }]
+        })
+      });
+
+      if (!response.ok) throw new Error("Claude API Response Error");
+      const resData = await response.json();
+      return resData.content[0].text;
+    } catch (err) {
+      console.error("Claude API 호출 실패:", err);
+      return "🐤 우웅.. 병아리 선배의 통신망이 잠깐 혼잡하구! 조금 있다가 다시 열어봐!";
+    }
+  };
+
+  // 탐지 조건 검출 및 AI 비동기 처방 제어
+  const triggerAIPrescriptions = async (computedStats) => {
+    const activeHabits = [];
+    if (computedStats.tabSwitchIssueRatio >= 0.4) activeHabits.push("tab_switch");
+    if (computedStats.avgSubmits >= 3 && (computedStats.passedCount / computedStats.totalCount) <= 0.7) activeHabits.push("typing_frenzy");
+    if (computedStats.highMouseOutRatio >= 0.3) activeHabits.push("mouse_wander");
+
+    if (activeHabits.length === 0) return;
+
+    // 로딩 상태 일괄 적용
+    const initialLoading = {};
+    activeHabits.forEach(h => { initialLoading[h] = true; });
+    setPrescriptionsLoading(prev => ({ ...prev, ...initialLoading }));
+
+    // 병렬로 API 요청을 보내고 처리 완료 순서대로 개별 바인딩하여 속도 극대화
+    activeHabits.forEach(async (habit) => {
+      const text = await fetchClaudePrescription(habit, computedStats);
+      setPrescriptions(prev => ({ ...prev, [habit]: text }));
+      setPrescriptionsLoading(prev => ({ ...prev, [habit]: false }));
+    });
+  };
 
   if (loading) {
     return (
@@ -212,8 +322,13 @@ export function Pattern({ t }) {
                   단일 문제를 풀 때 에디터 창을 이탈하여 포털로 전환한 빈도가 임계 가이드라인을 초과했습니다. 스스로 논리를 빌드하기 전 정답을 복제하려는 관성이 축적되었을 수 있습니다.
                 </p>
                 {hasTabHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#c62828', lineHeight: '1.4' }}>
-                    💡 <strong>교정 처방:</strong> 다음 코딩 시에는 검색창을 완전히 닫아보세요! 차라리 에디터 내의 <strong>AI 튜터(병아리 선배)</strong>에게 "이 조건식은 어떻게 채워?"라고 질문하며 단계적으로 힌트를 파싱하는 편이 잔존 실력 향상에 직결됩니다.
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                    💡 <strong>교정 처방:</strong>{" "}
+                    {prescriptionsLoading.tab_switch ? (
+                      <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
+                    ) : (
+                      <span dangerouslySetInnerHTML={{ __html: prescriptions.tab_switch || "데이터 분석 중이구..." }} />
+                    )}
                   </div>
                 )}
               </div>
@@ -232,8 +347,13 @@ export function Pattern({ t }) {
                   문제 텍스트 독해 시 머무르는 Idle 타임이 극도로 짧고 문항당 평균 제출 오답수가 {stats.avgSubmits.toFixed(1)}회로 불안정합니다.
                 </p>
                 {hasTypingHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ffa726', fontSize: '0.8rem', color: '#b76e00', lineHeight: '1.4' }}>
-                    💡 <strong>교정 처방:</strong> 채점 스위치를 클릭하기 전에 무조건 딱 10초만 키보드에서 손을 떼고 전체 구문을 위에서 아래로 눈 디버깅해 보세요. 무작정 컴파일을 날리는 사소한 런타임 실수가 기하급수적으로 줄어듭니다.
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ffa726', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                    💡 <strong>교정 처방:</strong>{" "}
+                    {prescriptionsLoading.typing_frenzy ? (
+                      <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
+                    ) : (
+                      <span dangerouslySetInnerHTML={{ __html: prescriptions.typing_frenzy || "데이터 분석 중이구..." }} />
+                    )}
                   </div>
                 )}
               </div>
@@ -252,8 +372,13 @@ export function Pattern({ t }) {
                   마우스 포인터가 브라우저 가시 구역 밖으로 이탈하여 정지 상태를 유지하는 비율이 포착되었습니다. 집중의 맥락이 파탄 나 인지적 피로도가 가중될 수 있습니다.
                 </p>
                 {hasMouseHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#c62828', lineHeight: '1.4' }}>
-                    💡 <strong>교정 처방:</strong> 흐름이 툭툭 끊기는 개발 환경은 두뇌 부하를 가중시킵니다. 스마트폰 알림을 일시 차단하고, 컴포넌트 타이머가 카운트되는 단 3분 동안만큼은 코드 뷰어에 시선을 고정하는 숏-포커스(Short-Focus) 트레이닝을 권장합니다.
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                    💡 <strong>교정 처방:</strong>{" "}
+                    {prescriptionsLoading.mouse_wander ? (
+                      <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
+                    ) : (
+                      <span dangerouslySetInnerHTML={{ __html: prescriptions.mouse_wander || "데이터 분석 중이구..." }} />
+                    )}
                   </div>
                 )}
               </div>
