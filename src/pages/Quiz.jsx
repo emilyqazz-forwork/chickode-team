@@ -373,20 +373,31 @@ export function Quiz({ t, params }) {
       ? Number((scoresArray.reduce((acc, val) => acc + val, 0) / scoresArray.length).toFixed(2))
       : 4.00;
 
-    // 🎯 [Supabase 동적 submissions 스키마에 최종 요약 저장 및 전송]
+      // 🎯 [Supabase 보완된 submissions 스키마에 맞춰 완벽 저장 및 전송]
     try {
+      // 1. 유저 ID 확보 (로그인이 안 되어 있으면 익명 테스트용 샘플 uuid나 null 처리)
       const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
-      const userId = userPayload.id || null;
+      const userId = userPayload.id || null; 
 
+      // 2. 소수점 자리수 유지를 위해 정밀 변환
+      const scoresArray = focusScoresRef.current;
+      const avgFocusScore = scoresArray.length > 0
+        ? Number((scoresArray.reduce((acc, val) => acc + val, 0) / scoresArray.length).toFixed(2))
+        : 4.00;
+
+      // 3. 데이터 삽입 시작
       const { error } = await supabase.from('submissions').insert([{
-        user_id: userId,
+        user_id: userId, // ⚠️ RLS 통과를 위해 반드시 유효한 auth.users의 UUID여야 함!
         problem_id: currentProblem.id,
         unit: currentProblem.unit || `c${settings.chapter}`,
         unit_level: currentProblem.difficulty || '기초',
         code_level: currentProblem.code_level || 3,
         problem_tag: currentProblem.keywords || [],
-        answer: currentProblem.answer || '',
-        user_code: currentProblem.type === 'coding' ? codeValue : selectedOption || '',
+        
+        // 📝 [보완] 실제 테이블 컬럼명 매핑 완료
+        answer: String(currentProblem.answer || ''), 
+        user_code: codeValue.trim() !== '' ? codeValue : String(selectedOption || ''),
+        
         is_correct: isCorrect,
         study_seconds: studySeconds,
         tab_switch_count: tabSwitchCount,
@@ -395,7 +406,7 @@ export function Quiz({ t, params }) {
       }]);
 
       if (error) throw error;
-      console.log("Supabase submissions DB 기록 완료!");
+      console.log("Supabase submissions DB 기록 성공! 🎉");
     } catch (err) {
       console.error("Supabase submissions DB 기록 오류:", err.message);
     }
