@@ -103,6 +103,7 @@ export function Quiz({ t, params }) {
   const [totalGoalCount, setTotalGoalCount] = useState(() => settings.count || 10);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [mouseOutCount, setMouseOutCount] = useState(0);
+  const [submitCount, setSubmitCount] = useState(0);
   const focusScoresRef = useRef([]);
 
   const bumpActivity = useCallback(() => {
@@ -207,6 +208,7 @@ export function Quiz({ t, params }) {
     // 다음 문제로 넘어갈 때 미세 행동 요약 변수 초기화
     setTabSwitchCount(0);
     setMouseOutCount(0);
+    setSubmitCount(0);
     focusScoresRef.current = [];
     
     if (chatHistory.length === 0) {
@@ -261,7 +263,9 @@ export function Quiz({ t, params }) {
         item_code_typing: isEditorTyping,
         item_tab_ok: !docHidden,
         item_steady_typing: isEditorTyping,
-        item_mouse_ok: mouseInsideDoc
+        item_mouse_ok: mouseInsideDoc,
+        tab_switch_count: tabSwitchCount, 
+        mouse_out_count: mouseOutCount  
       };
 
       try {
@@ -420,6 +424,7 @@ export function Quiz({ t, params }) {
 
   const handleSubmit = async () => {
     bumpActivity();
+    setSubmitCount(prev => prev + 1);
     const currentProblem = quizList[currentIndex];
     if (!currentProblem) return;
 
@@ -489,7 +494,8 @@ export function Quiz({ t, params }) {
         study_seconds: studySeconds,
         tab_switch_count: tabSwitchCount,
         mouse_out_count: mouseOutCount,
-        avg_focus_score: avgFocusScore
+        avg_focus_score: avgFocusScore,
+        submit_count: submitCount
       }]);
 
       if (error) throw error;
