@@ -38,6 +38,7 @@ export function calculateLearningStats(attempts = [], behaviorLogs = []) {
       passedCount: 0,
       totalCount: 0,
       avgSubmits: 0,
+      avgHints: 0,
       tabSwitchIssueRatio: 0,
       highMouseOutRatio: 0,
       weakestChapter: 1
@@ -114,6 +115,7 @@ export function calculateLearningStats(attempts = [], behaviorLogs = []) {
     passedCount: passedLogs.length,
     totalCount: totalLogs,
     avgSubmits,
+    avgHints,
     tabSwitchIssueRatio: totalLogs > 0 ? (tabSwitchIssueCount / totalLogs) : 0,
     highMouseOutRatio: totalLogs > 0 ? (highMouseOutCount / totalLogs) : 0,
     weakestChapter
