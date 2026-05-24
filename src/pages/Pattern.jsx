@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Supabase 클라이언트 인스턴스 가져오기 (프로젝트 경로에 맞게 조절 필요)
+// Supabase 클라이언트 인스턴스 (프로젝트 설정에 따라 경로 수정 가능)
 import { supabase } from '../supabase'; 
 
 export function Pattern({ t }) {
@@ -10,6 +10,7 @@ export function Pattern({ t }) {
   const [attempts, setAttempts] = useState([]);
   const [behaviorLogs, setBehaviorLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [weakestChapter, setWeakestChapter] = useState(1); // 동적 처방용 취약 챕터
   const [stats, setStats] = useState({
     implementation: 0,
     conceptual: 0,
@@ -25,7 +26,7 @@ export function Pattern({ t }) {
   const chapterNames = { 1: '변수 기초', 2: '출력 기초', 3: '조건문', 4: '반복문' };
   const typeNames = { ox: 'O/X 퀴즈', multiple: '객관식', coding: '실습 코딩' };
 
-  // 기준점: 일주일 전 과거 통계 상수 셋 (성장 곡선 대조용)
+  // 기준점: 일주일 전 과거 통계 상수 (성장 곡선 대조용)
   const pastStats = { implementation: 42, conceptual: 55, focus: 50, tAdjAvg: 95 };
 
   // 난이도별 비선형 시간 가중치 헬퍼 함수
@@ -42,7 +43,7 @@ export function Pattern({ t }) {
       try {
         setLoading(true);
 
-        // 현재 로그인한 사용자 세션 조회 (인증 정보 연동)
+        // 현재 로그인한 사용자 세션 조회
         const { data: { user } } = await supabase.auth.getUser();
         const userId = user?.id; 
 
@@ -73,14 +74,14 @@ export function Pattern({ t }) {
           const totalHintCount = attemptData.reduce((acc, cur) => acc + (cur.hint_count || 0), 0);
           const totalFocusScore = attemptData.reduce((acc, cur) => acc + (cur.avg_focus_score || 0), 0);
 
-          const passRate = passedLogs.length / totalLogs;
-          const avgSubmits = totalSubmitCount / totalLogs;
-          const avgHints = totalHintCount / totalLogs;
-          const avgFocus = totalFocusScore / totalLogs;
+          const passRate = totalLogs > 0 ? (passedLogs.length / totalLogs) : 0;
+          const avgSubmits = totalLogs > 0 ? (totalSubmitCount / totalLogs) : 0;
+          const avgHints = totalLogs > 0 ? (totalHintCount / totalLogs) : 0;
+          const avgFocus = totalLogs > 0 ? (totalFocusScore / totalLogs) : 0;
 
           // [공식 1] 구현 스탯 연산
           const implementationScore = Math.max(0, Math.min(100, Math.round(
-            (passedCodeLevel / totalCodeLevel * 100) - (avgSubmits * 4) + (passRate * 20)
+            (totalCodeLevel > 0 ? (passedCodeLevel / totalCodeLevel * 100) : 0) - (avgSubmits * 4) + (passRate * 20)
           )));
 
           // [공식 2] 개념 이해 스탯 연산
@@ -97,8 +98,10 @@ export function Pattern({ t }) {
             const lvl = cur.code_level || 1;
             return acc + (seconds / getWeight(lvl));
           }, 0);
-          const recentTAdjAvg = recentTAdjTotal / totalLogs;
-          const timeGrowth = Math.round(((pastStats.tAdjAvg - recentTAdjAvg) / pastStats.tAdjAvg) * 100);
+          const recentTAdjAvg = totalLogs > 0 ? (recentTAdjTotal / totalLogs) : 95;
+          const timeGrowth = pastStats.tAdjAvg > 0 
+            ? Math.round(((pastStats.tAdjAvg - recentTAdjAvg) / pastStats.tAdjAvg) * 100)
+            : 0;
 
           // [습관 진단 조건용 연산]
           const tabSwitchIssueCount = bLogs.filter(l => (l.tab_switch_count || 0) >= 4).length;
@@ -115,6 +118,26 @@ export function Pattern({ t }) {
             tabSwitchIssueRatio: totalLogs > 0 ? (tabSwitchIssueCount / totalLogs) : 0,
             highMouseOutRatio: totalLogs > 0 ? (highMouseOutCount / totalLogs) : 0
           });
+
+          // --- [동적 취약 챕터 추적 모듈] ---
+          const chapterStats = {};
+          attemptData.forEach(att => {
+            const ch = att.chapter_id || att.chapter || 1;
+            if (!chapterStats[ch]) chapterStats[ch] = { correct: 0, total: 0 };
+            chapterStats[ch].total += 1;
+            if (att.is_correct || att.isCorrect) chapterStats[ch].correct += 1;
+          });
+
+          let minAccuracy = 1.1;
+          let worstCh = 1;
+          Object.entries(chapterStats).forEach(([ch, data]) => {
+            const acc = data.correct / data.total;
+            if (acc < minAccuracy) {
+              minAccuracy = acc;
+              worstCh = parseInt(ch);
+            }
+          });
+          setWeakestChapter(worstCh);
         }
       } catch (error) {
         console.error("데이터 바인딩 도중 오류 발생:", error);
@@ -126,19 +149,19 @@ export function Pattern({ t }) {
     fetchLearningData();
   }, []);
 
-  // 게이지 컬러 파레트 결정 서브 기믹
-  const getProgressColor = (score) => {
-    if (score >= 70) return '#66bb6a'; 
-    if (score >= 40) return '#ffa726'; 
-    return '#ef5350'; 
-  };
-
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f0e8', color: '#5d4037', fontFamily: 'sans-serif' }}>
+        {/* 회전 애니메이션용 글로벌 키프레임 인젝션 */}
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', animation: 'spin 1s linear infinite' }}>⏳</div>
-          <p style={{ marginTop: '12px', fontWeight: 'bold' }}>Supabase 안전 데이터 인지 엔진 연동 중...</p>
+          <div style={{ fontSize: '2.5rem', animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>⏳</div>
+          <p style={{ marginTop: '16px', fontWeight: 'bold', fontSize: '1.05rem' }}>Supabase 안전 데이터 인지 엔진 연동 중...</p>
         </div>
       </div>
     );
@@ -146,7 +169,7 @@ export function Pattern({ t }) {
 
   // 2. 나쁜 습관 감지 룰 엔진 플래그 세팅
   const hasTabHabit = stats.tabSwitchIssueRatio >= 0.4;
-  const hasTypingHabit = stats.avgSubmits >= 3 && (stats.passedCount / stats.totalCount) <= 0.7;
+  const hasTypingHabit = stats.avgSubmits >= 3 && (stats.totalCount > 0 ? (stats.passedCount / stats.totalCount) <= 0.7 : false);
   const hasMouseHabit = stats.highMouseOutRatio >= 0.3;
 
   return (
@@ -154,7 +177,7 @@ export function Pattern({ t }) {
       
       {/* 윈도우 컨트롤 바 */}
       <div style={{ width: '100%', maxWidth: '750px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <button type="button" onClick={() => navigate(-1)} style={{ background: '#5d4037', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer' }}>
+        <button type="button" onClick={() => navigate(-1)} style={{ background: '#5d4037', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold' }}>
           ❮ 뒤로가기
         </button>
         <span style={{ fontSize: '0.85rem', color: '#8d6e63', fontWeight: 'bold', border: '1px solid #d7ccc8', padding: '4px 8px', borderRadius: '6px', background: 'white' }}>
@@ -163,10 +186,10 @@ export function Pattern({ t }) {
       </div>
 
       {attempts.length === 0 ? (
-        <div style={{ color: '#3e2723', textAlign: 'center', marginTop: '8px' }}>
+        <div style={{ color: '#3e2723', textAlign: 'center', marginTop: '40px' }}>
           <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>아직 누적된 학습 로그가 없어! 🐥</p>
           <p style={{ color: '#8d6e63', marginTop: '8px' }}>문제를 풀면 Supabase 원격 테이블에 수집되어 정밀 성취도가 도출됩니다.</p>
-          <button className="clay-submit" onClick={() => navigate('/')} style={{ marginTop: '24px', padding: '10px 24px', borderRadius: '12px', background: '#5d4037', color: 'white', border: 'none', cursor: 'pointer' }}>문제 풀러 가기</button>
+          <button className="clay-submit" onClick={() => navigate('/')} style={{ marginTop: '24px', padding: '10px 24px', borderRadius: '12px', background: '#5d4037', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>문제 풀러 가기</button>
         </div>
       ) : (
         <div style={{ width: '100%', maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
@@ -177,7 +200,7 @@ export function Pattern({ t }) {
             <p style={{ color: '#8d6e63', margin: 0, fontSize: '0.9rem' }}>클라우드 원천 DB 계측 데이터를 기반으로 포인팅된 비선형 리포트</p>
           </div>
 
-          {/* SECTION 1: 다차원 정량 스탯 리포트 (100점 스케일 변환) */}
+          {/* SECTION 1: 다차원 정량 스탯 리포트 */}
           <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>📈</span> 초보자 친화적 역량 성취 지표
@@ -189,7 +212,10 @@ export function Pattern({ t }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
                   <span style={{ fontWeight: 'bold' }}>💻 고유 소스코드 구현력 (Implementation)</span>
                   <span style={{ fontWeight: 'bold' }}>
-                    {stats.implementation}점 <span style={{ color: '#4caf50', fontSize: '0.8rem', marginLeft: '4px' }}>▲ (전주대비 +{(stats.implementation - pastStats.implementation).toFixed(1)})</span>
+                    {stats.implementation}점 
+                    <span style={{ color: (stats.implementation - pastStats.implementation) >= 0 ? '#4caf50' : '#ef5350', fontSize: '0.8rem', marginLeft: '4px' }}>
+                      ▲ (전주대비 {((stats.implementation - pastStats.implementation) >= 0 ? '+' : '') + (stats.implementation - pastStats.implementation).toFixed(1)})
+                    </span>
                   </span>
                 </div>
                 <div style={{ background: '#f5f0e8', height: '12px', borderRadius: '10px', overflow: 'hidden' }}>
@@ -202,7 +228,10 @@ export function Pattern({ t }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
                   <span style={{ fontWeight: 'bold' }}>💡 개념구조 이해력 (Conceptual Capacity)</span>
                   <span style={{ fontWeight: 'bold' }}>
-                    {stats.conceptual}점 <span style={{ color: '#4caf50', fontSize: '0.8rem', marginLeft: '4px' }}>▲ (전주대비 +{(stats.conceptual - pastStats.conceptual).toFixed(1)})</span>
+                    {stats.conceptual}점 
+                    <span style={{ color: (stats.conceptual - pastStats.conceptual) >= 0 ? '#4caf50' : '#ef5350', fontSize: '0.8rem', marginLeft: '4px' }}>
+                      ▲ (전주대비 {((stats.conceptual - pastStats.conceptual) >= 0 ? '+' : '') + (stats.conceptual - pastStats.conceptual).toFixed(1)})
+                    </span>
                   </span>
                 </div>
                 <div style={{ background: '#f5f0e8', height: '12px', borderRadius: '10px', overflow: 'hidden' }}>
@@ -215,7 +244,10 @@ export function Pattern({ t }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
                   <span style={{ fontWeight: 'bold' }}>👁️ 인지적 시선 몰입력 (Cognitive Focus)</span>
                   <span style={{ fontWeight: 'bold' }}>
-                    {stats.focus}점 <span style={{ color: '#4caf50', fontSize: '0.8rem', marginLeft: '4px' }}>▲ (전주대비 +{(stats.focus - pastStats.focus).toFixed(1)})</span>
+                    {stats.focus}점 
+                    <span style={{ color: (stats.focus - pastStats.focus) >= 0 ? '#4caf50' : '#ef5350', fontSize: '0.8rem', marginLeft: '4px' }}>
+                      ▲ (전주대비 {((stats.focus - pastStats.focus) >= 0 ? '+' : '') + (stats.focus - pastStats.focus).toFixed(1)})
+                    </span>
                   </span>
                 </div>
                 <div style={{ background: '#f5f0e8', height: '12px', borderRadius: '10px', overflow: 'hidden' }}>
@@ -330,10 +362,10 @@ export function Pattern({ t }) {
             </div>
             <button 
               className="clay-submit" 
-              onClick={() => navigate('/play', { state: { chapter: 4, count: 5, ratio: 50, difficulty: '중' } })} 
+              onClick={() => navigate('/play', { state: { chapter: weakestChapter, count: 5, ratio: 50, difficulty: '중' } })} 
               style={{ padding: '10px 16px', background: '#5d4037', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              취약 챕터 처방 ⚡
+              취약 챕터(Ch.{weakestChapter}) 처방 ⚡
             </button>
           </div>
 
