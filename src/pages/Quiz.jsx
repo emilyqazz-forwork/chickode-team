@@ -9,6 +9,8 @@ import { addAttempt, getProfile } from '../state/app-state';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
+// ⭐ [세션리스 설계] 클라이언트 단에서 물리 테이블 없이 고유 세션을 묶어줄 일회성 UUID 생성기 도입
+import { v4 as uuidv4 } from 'uuid'; 
 
 // 📂 [분리 완료] 복잡한 CCTV 데이터 및 실시간 감지 함수 가져오기
 import {
@@ -30,6 +32,10 @@ export function Quiz({ t, params }) {
   const navigate = useNavigate();
   // 기본 단원 이름 및 난이도 폴백 매칭 구조
   const settings = location.state || { count: 10, ratio: 50, chapter: 1, difficulty: '기초' };
+
+  // 🛡️ [수정/설계] 컴포넌트 마운트 시 최초 1회만 고유 UUID를 발급하여 세션 ID로 삼습니다.
+  // 이 가상 세션 ID는 user_behavior_logs와 submissions 테이블을 물리 변경 없이 논리적으로 묶어주는 열쇠가 됩니다.
+  const [virtualSessionId] = useState(() => uuidv4());
 
   const [persona, setPersona] = useState(() => readStoredPersona(params?.persona));
   const tutorPersona = getTutorPersona(persona);
@@ -81,7 +87,8 @@ export function Quiz({ t, params }) {
   const lastMcqRef = useRef(null);
   const editorTypingTimeoutRef = useRef(null);
   
-  // 📊 [신규 상태 선언] 동적 성과 지표 및 실시간 행동 트래킹 데이터셋
+  // 📊 [수정/지표] 세팅 모달에서 수렴한 count 정보를 분모 상태값(totalGoalCount)으로 선언합니다.
+  // 이 값은 AI가 도중에 처방전을 발행해 챌린지 문제를 추가할 때 동적으로 확장(+1)됩니다.
   const [totalGoalCount, setTotalGoalCount] = useState(() => settings.count || 10);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [mouseOutCount, setMouseOutCount] = useState(0);
@@ -91,7 +98,7 @@ export function Quiz({ t, params }) {
     lastActivityRef.current = Date.now();
   }, []);
 
-  // [Quiz.jsx] 내부 fetchProblemsFromSupabase 수정본
+  // [Quiz.jsx] 내부 fetchProblemsFromSupabase 점진적 계단식 난이도 자동 정산 엔진 적용본
   useEffect(() => {
     async function fetchProblemsFromSupabase() {
       const { count, chapter } = settings; 
@@ -100,6 +107,7 @@ export function Quiz({ t, params }) {
         const chapterIdMap = { 1: 'c1', 2: 'c2', 3: 'c3', 4: 'c4' };
         const targetChapterId = chapterIdMap[chapter] || 'c3';
 
+        // 해당 대단원의 모든 자바 문제를 Supabase DB에서 통째로 긁어옵니다.
         let query = supabase.from('problems')
           .select('*')
           .eq('language', 'Java')
@@ -108,17 +116,51 @@ export function Quiz({ t, params }) {
         const { data: pool, error } = await query;
         if (error) throw error;
 
-        let finalPool = (pool || []).sort(() => 0.5 - Math.random());
-        
-        if (finalPool.length === 0) {
+        if (!pool || pool.length === 0) {
           console.warn(`챕터 ${chapter} (패턴: ${targetChapterId})에 등록된 문제가 없습니다.`);
           setQuizList([]);
           return;
         }
 
-        const selectedProblems = finalPool.slice(0, count);
+        // 🧠 [황금비율 알고리즘 작동 부문]
+        // 10문제 설정 시 code_level 기준 1단계(50%), 3단계(30%), 5단계(20%)로 비율을 나눕니다.
+        let targetL5Count = Math.max(0, Math.floor(count * 0.2));
+        let targetL3Count = Math.max(0, Math.floor(count * 0.3));
+        
+        // 문항 수가 3개 이상인데 계산상 5단계가 0개가 되면 학습 동기부여를 위해 최소 1개는 심화로 배치합니다.
+        if (count >= 3 && targetL5Count === 0) targetL5Count = 1;
+        if (count >= 2 && targetL3Count === 0) targetL3Count = 1;
+        
+        // 남은 모든 수량은 몸풀기용 1단계 쉬운 문제군으로 배치합니다.
+        let targetL1Count = count - targetL3Count - targetL5Count;
+        if (targetL1Count < 0) targetL1Count = 0;
 
-        const mappedList = selectedProblems.map(p => ({
+        // DB 문제 수영장(Pool)에서 각 난이도 그룹별 분리 및 무작위 셔플
+        const level1Pool = pool.filter(p => p.code_level <= 2).sort(() => 0.5 - Math.random());
+        const level3Pool = pool.filter(p => p.code_level >= 3 && p.code_level <= 4).sort(() => 0.5 - Math.random());
+        const level5Pool = pool.filter(p => p.code_level >= 5).sort(() => 0.5 - Math.random());
+
+        // 각 난이도 풀에서 계산된 최적의 배분 수량만큼 균등하게 추출합니다.
+        const selectedL1 = level1Pool.slice(0, targetL1Count);
+        const selectedL3 = level3Pool.slice(0, targetL3Count);
+        const selectedL5 = level5Pool.slice(0, targetL5Count);
+
+        // 추출 완료된 문제 목록을 최종 결합합니다.
+        let combinedProblems = [...selectedL1, ...selectedL3, ...selectedL5];
+
+        // 🛡️ [만약 데이터가 부족할 경우 방어 코드]
+        // 특정 레벨의 문제가 모자라서 총량이 채워지지 않으면, 전체 문제집에서 랜덤으로 채워줍니다.
+        if (combinedProblems.length < count) {
+          const remainingCount = count - combinedProblems.length;
+          const remainingPool = pool.filter(p => !combinedProblems.some(cp => cp.id === p.id))
+                                    .sort(() => 0.5 - Math.random());
+          combinedProblems = [...combinedProblems, ...remainingPool.slice(0, remainingCount)];
+        }
+
+        // 🚀 [핵심 정렬 로직] 섞이지 않고 무조건 1단계 -> 3단계 -> 5단계 계단식 오름차순으로 출제
+        combinedProblems.sort((a, b) => (a.code_level || 1) - (b.code_level || 1));
+
+        const mappedList = combinedProblems.map(p => ({
           ...p,
           title: p.title || '코딩 문제',
           desc: p.description || '',
@@ -165,19 +207,21 @@ export function Quiz({ t, params }) {
     if (chatDisplayRef.current) chatDisplayRef.current.scrollTop = chatDisplayRef.current.scrollHeight;
   }, [chatHistory, isChatOpen]);
 
-  // ⏱ 1초 주기의 백그라운드 타이머 내에서 실시간 집중도 척도(k점수)를 수집하여 배열에 아카이브
+  // ⏱ [수정/스트리머] 1초 주기의 백그라운드 집중도(K점수) 감지 및 10초 주기의 Throttled 고주파 로그 전송 장치 통합
   useEffect(() => {
     if (!quizList.length) return;
+    const currentProblem = quizList[currentIndex];
+    if (!currentProblem) return;
     
-    const id = setInterval(() => {
+    // ① 1초 간격 실시간 정밀 K-Score 적립 처리 타이머
+    const timerId = setInterval(() => {
       setStudySeconds((s) => s + 1);
 
       const now = Date.now();
-      const problem = quizList[currentIndex];
-      if (problem) {
+      if (currentProblem) {
         const { k } = computeCctvChecks({
           now,
-          isCoding: problem.type === 'coding',
+          isCoding: currentProblem.type === 'coding',
           docHidden,
           mouseInsideDoc,
           editorTyping: isEditorTyping,
@@ -188,9 +232,40 @@ export function Quiz({ t, params }) {
         focusScoresRef.current.push(k); // 최종 제출 시점의 k점수 평균 연산을 위해 누적 기록
       }
     }, 1000);
+
+    // ② [고주파 스트리머] 10초 간격으로 유저의 마이크로 행동 데이터를 취합하여 Supabase user_behavior_logs에 벌크 전송
+    let bufferSeconds = 0;
+    const streamId = setInterval(async () => {
+      bufferSeconds += 10;
+      const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
+      const userId = userPayload.id || null;
+
+      const payload = {
+        session_id: virtualSessionId, // 묶음 분석을 위해 프론트 가상 세션 ID 주입
+        problem_id: currentProblem.id,
+        user_id: userId,
+        elapsed_time: bufferSeconds,
+        // 현재 10초 프레임에서 수집된 가장 최근의 K-Score 집중도를 상태로 바인딩
+        cctv_k_score: focusScoresRef.current[focusScoresRef.current.length - 1] || 3,
+        item_code_typing: isEditorTyping,
+        item_tab_ok: !docHidden,
+        item_steady_typing: isEditorTyping,
+        item_mouse_ok: mouseInsideDoc
+      };
+
+      try {
+        await supabase.from('user_behavior_logs').insert([payload]);
+        console.log("고주파 행동로그 전송 성공");
+      } catch (err) {
+        console.error("행동로그 전송 실패:", err);
+      }
+    }, 10000);
     
-    return () => clearInterval(id);
-  }, [quizList.length, currentIndex, docHidden, mouseInsideDoc, isEditorTyping]);
+    return () => {
+      clearInterval(timerId);
+      clearInterval(streamId);
+    };
+  }, [quizList.length, currentIndex, docHidden, mouseInsideDoc, isEditorTyping, virtualSessionId]);
 
   // 👀 Visibility API 기반의 실시간 브라우저 탭 이탈률 트래킹 연동
   useEffect(() => {
@@ -322,7 +397,7 @@ export function Quiz({ t, params }) {
       // 1. 기존 학습 목록 최하단에 생성된 AI 문제를 병합 주입
       setQuizList((prev) => [...prev, aiProblem]);
       
-      // 2. 📊 [성과도 수식 동기화] 동적 완수도 분모를 +1 실시간 증가시킴
+      // 2. 📊 [성과도 수식 동기화] 동적 완수도 계산에서 에러가 나지 않도록 분모를 +1 증가시킵니다.
       setTotalGoalCount((prev) => prev + 1);
       
       addTermLog('성공: 삐약이가 새로운 챌린지 보완 코딩 문제를 처방했습니다! 퀴즈 리스트를 확인해봐! 🎉', 'success');
@@ -343,7 +418,7 @@ export function Quiz({ t, params }) {
         setCurrentIndex((prev) => prev + 1);
         setIsSubmitted(false); 
       } else {
-        // AI가 부여한 동적 보완 영역까지 전체 마일스톤 완수 시 최종 리포트 대시보드로 이동
+        // AI가 부여한 동적 보완 영역까지 전체 마일스톤 완수 시 최종 리포트 대시보드로 이동 (동적 분모 반영)
         navigate('/result', { state: { total: totalGoalCount, correct: correctCount } });
       }
       return;
@@ -373,7 +448,7 @@ export function Quiz({ t, params }) {
       ? Number((scoresArray.reduce((acc, val) => acc + val, 0) / scoresArray.length).toFixed(2))
       : 4.00;
 
-      // 🎯 [Supabase 보완된 submissions 스키마에 맞춰 완벽 저장 및 전송]
+    // 🎯 [Supabase 보완된 submissions 스키마에 맞춰 완벽 저장 및 전송]
     try {
       // 1. 유저 ID 확보 (로그인이 안 되어 있으면 익명 테스트용 샘플 uuid나 null 처리)
       const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
@@ -389,8 +464,9 @@ export function Quiz({ t, params }) {
       const { error } = await supabase.from('submissions').insert([{
         user_id: userId, // ⚠️ RLS 통과를 위해 반드시 유효한 auth.users의 UUID여야 함!
         problem_id: currentProblem.id,
+        session_id: virtualSessionId, // 📊 [추가/연동] submissions 전송 시에도 가상 세션 ID를 삽입하여 정합성을 맞춥니다.
         unit: currentProblem.unit || `c${settings.chapter}`,
-        unit_level: currentProblem.difficulty || '기초',
+        unit_level: settings.difficulty || '기초', // 📊 [보완/수정] Home에서 선택하고 넘어온 한글 난이도를 매핑 주입
         code_level: currentProblem.code_level || 3,
         problem_tag: currentProblem.keywords || [],
         
@@ -575,6 +651,9 @@ export function Quiz({ t, params }) {
 
   const currentChapterObj = settings.chapter || { title: "알 수 없는 단원" };
 
+  // 📊 [수정/연산] 동적 분모 totalGoalCount와 현재 완료 문항을 매핑하여 백분율 스탯 산출
+  const currentCompletionRate = Math.round((currentIndex / totalGoalCount) * 100);
+
   return (
     <div className="coding-view" style={{ display: 'flex' }}>
       <nav className="top-nav">
@@ -594,15 +673,15 @@ export function Quiz({ t, params }) {
           <div style={{ fontSize: 12, color: '#5c3d2e', marginBottom: 6 }}>
             {getPersonaModeDisplay(persona)}
           </div>
-          {/* 📊 동적 분모 totalGoalCount를 완벽하게 연동한 학습 완수 성과 지표 렌더링 구역 */}
+          {/* 📊 동적 분모(AI 문제 발생 시 자동 보정)가 정밀하게 반영된 성과도 대시보드 컴포넌트 */}
           <div className="quiz-progress-panel">
             <div className="quiz-progress-label">
-              성과도: {Math.round((currentIndex / totalGoalCount) * 100)}% ({currentIndex} / {totalGoalCount} 문제 완료)
+              성과도: {currentCompletionRate}% ({currentIndex} / {totalGoalCount} 문제 완료)
             </div>
             <div className="progress-bar-container">
               <div
                 className="progress-bar"
-                style={{ width: `${Math.min(100, Math.round((currentIndex / totalGoalCount) * 100))}%` }}
+                style={{ width: `${Math.min(100, currentCompletionRate)}%` }}
               />
             </div>
           </div>
