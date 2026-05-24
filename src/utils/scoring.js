@@ -86,7 +86,7 @@ export function calculateLearningStats(attempts = [], behaviorLogs = []) {
 
   // CCTV 로그 행동 양식 집계
   const tabSwitchIssueCount = behaviorLogs.filter(l => (l.tab_switch_count || 0) >= 4).length;
-  const highMouseOutCount = behaviorLogs.filter(l => (l.mouse_out_ratio || 0) >= 0.3).length;
+  const highMouseOutCount = behaviorLogs.filter(l => (l.mouse_out_count || 0) >= 3).length;
 
   // 취약 챕터 추적 모듈
   const chapterStats = {};

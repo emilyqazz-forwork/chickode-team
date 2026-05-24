@@ -1,132 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient'; 
 // 격리시킨 연산 유틸 및 상수 가져오기
-import { calculateLearningStats, PAST_STATS_BASELINE } from '../utils/scoring';
+import { PAST_STATS_BASELINE } from '../utils/scoring';
 import { StatSection } from '../components/pattern/StatSection';
+import { usePatternData } from '../hooks/usePatternData';
 
 // CLAUDE_API_KEY 제거 — API 키는 Supabase Edge Function 서버에만 존재 (클라이언트 노출 방지)
 
 export function Pattern({ t }) {
   const navigate = useNavigate();
   
-  const [attempts, setAttempts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [displayName, setDisplayName] = useState("코딩 병아리");
-  const [stats, setStats] = useState({
-    implementation: 0,
-    conceptual: 0,
-    focus: 0,
-    timeGrowthRate: 0,
-    passedCount: 0,
-    totalCount: 0,
-    avgSubmits: 0,
-    avgHints: 0,        // ← 추가: StatSection 스택 바 계산에 필요
-    tabSwitchIssueRatio: 0,
-    highMouseOutRatio: 0,
-    weakestChapter: 1
-  });
-
-  // Claude 동적 처방 메시지 상태
-  const [prescriptions, setPrescriptions] = useState({
-    tab_switch: "",
-    typing_frenzy: "",
-    mouse_wander: ""
-  });
-  const [prescriptionsLoading, setPrescriptionsLoading] = useState({
-    tab_switch: false,
-    typing_frenzy: false,
-    mouse_wander: false
-  });
-
-  useEffect(() => {
-    async function fetchLearningData() {
-      try {
-        setLoading(true);
-
-        const { data: { user } } = await supabase.auth.getUser();
-        const userId = user?.id; 
-
-        if (userId) {
-          // profiles 테이블에서 실제 유저의 이름 조회
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('display_name')
-            .eq('id', userId)
-            .single();
-          if (profile?.display_name) {
-            setDisplayName(profile.display_name);
-          }
-        }
-
-        // [Table 1] 문제 시도 이력 로드
-        let attemptQuery = supabase.from('user_attempts').select('*');
-        if (userId) attemptQuery = attemptQuery.eq('user_id', userId);
-        const { data: attemptData, error: err1 } = await attemptQuery;
-
-        // [Table 2] CCTV 다차원 행동 로그 데이터 로드
-        let behaviorQuery = supabase.from('user_behavior_logs').select('*');
-        if (userId) behaviorQuery = behaviorQuery.eq('user_id', userId);
-        const { data: behaviorData, error: err2 } = await behaviorQuery;
-
-        if (err1 || err2) throw new Error("Supabase 데이터 추출 실패");
-
-        if (attemptData && attemptData.length > 0) {
-          setAttempts(attemptData);
-          const bLogs = behaviorData || [];
-          
-          // 분리한 유틸리티 엔진 호출을 통한 스탯 바인딩
-          const computedStats = calculateLearningStats(attemptData, bLogs);
-          setStats(computedStats);
-
-          // 다차원 거동 기반 습관 체크 후 필요시 Claude API 동적 호출 트리거
-          triggerAIPrescriptions(computedStats);
-        }
-      } catch (error) {
-        console.error("데이터 바인딩 도중 오류 발생:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchLearningData();
-  }, []);
-
-  // Claude Messages API 호출 — Supabase Edge Function 경유 (API 키 클라이언트 노출 없음)
-  const fetchClaudePrescription = async (habitType, computedStats) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('claude-prescription', {
-        body: { habitType, stats: computedStats, displayName }
-      });
-      if (error) throw error;
-      return data?.prescription ?? "🐤 병아리 선배의 통신망이 잠깐 혼잡하구! 조금 있다가 다시 열어봐!";
-    } catch (err) {
-      console.error("Claude API 호출 실패:", err);
-      return "🐤 우웅.. 병아리 선배의 통신망이 잠깐 혼잡하구! 조금 있다가 다시 열어봐!";
-    }
-  };
-
-  // 탐지 조건 검출 및 AI 비동기 처방 제어
-  const triggerAIPrescriptions = async (computedStats) => {
-    const activeHabits = [];
-    if (computedStats.tabSwitchIssueRatio >= 0.4) activeHabits.push("tab_switch");
-    if (computedStats.avgSubmits >= 3 && (computedStats.passedCount / computedStats.totalCount) <= 0.7) activeHabits.push("typing_frenzy");
-    if (computedStats.highMouseOutRatio >= 0.3) activeHabits.push("mouse_wander");
-
-    if (activeHabits.length === 0) return;
-
-    // 로딩 상태 일괄 적용
-    const initialLoading = {};
-    activeHabits.forEach(h => { initialLoading[h] = true; });
-    setPrescriptionsLoading(prev => ({ ...prev, ...initialLoading }));
-
-    // 병렬로 API 요청을 보내고 처리 완료 순서대로 개별 바인딩하여 속도 극대화
-    activeHabits.forEach(async (habit) => {
-      const text = await fetchClaudePrescription(habit, computedStats);
-      setPrescriptions(prev => ({ ...prev, [habit]: text }));
-      setPrescriptionsLoading(prev => ({ ...prev, [habit]: false }));
-    });
-  };
+  const { attempts, loading, stats, prescriptions, prescriptionsLoading } = usePatternData();
 
   if (loading) {
     return (
