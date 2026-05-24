@@ -4,8 +4,7 @@ import { supabase } from '../supabaseClient';
 // 격리시킨 연산 유틸 및 상수 가져오기
 import { calculateLearningStats, PAST_STATS_BASELINE } from '../utils/scoring';
 
-// Vite 환경 변수에서 Claude API Key 바인딩 (프로젝트 설정에 따라 process.env.CHICKODE_CLAUDE_API_KEY 등으로 유연하게 변경 가능)
-const CLAUDE_API_KEY = import.meta.env?.VITE_CHICKODE_CLAUDE_API_KEY || process.env?.CHICKODE_CLAUDE_API_KEY || "";
+// CLAUDE_API_KEY 제거 — API 키는 Supabase Edge Function 서버에만 존재 (클라이언트 노출 방지)
 
 export function Pattern({ t }) {
   const navigate = useNavigate();
@@ -21,6 +20,7 @@ export function Pattern({ t }) {
     passedCount: 0,
     totalCount: 0,
     avgSubmits: 0,
+    avgHints: 0,        // ← 추가: StatSection 스택 바 계산에 필요
     tabSwitchIssueRatio: 0,
     highMouseOutRatio: 0,
     weakestChapter: 1
@@ -79,7 +79,7 @@ export function Pattern({ t }) {
           setStats(computedStats);
 
           // 다차원 거동 기반 습관 체크 후 필요시 Claude API 동적 호출 트리거
-          triggerAIPrescriptions(computedStats, bLogs);
+          triggerAIPrescriptions(computedStats);
         }
       } catch (error) {
         console.error("데이터 바인딩 도중 오류 발생:", error);
@@ -91,57 +91,14 @@ export function Pattern({ t }) {
     fetchLearningData();
   }, []);
 
-  // Claude Messages API 호출 및 동적 처방문 스트리밍 생성 모듈
+  // Claude Messages API 호출 — Supabase Edge Function 경유 (API 키 클라이언트 노출 없음)
   const fetchClaudePrescription = async (habitType, computedStats) => {
-    if (!CLAUDE_API_KEY) {
-      console.warn("⚠️ API Key가 누락되었구! .env 파일 내 CHICKODE_CLAUDE_API_KEY 선언을 확인해줘.");
-      return "🔑 API Key 설정이 되어있지 않아 처방전을 불러올 수 없구.. 선배에게 알려줘!";
-    }
-
-    let habitContext = "";
-    if (habitType === "tab_switch") {
-      habitContext = "에디터 창을 이탈해 포털로 화면을 전환(Ctrl+Tab, 복사/붙여넣기)한 빈도가 40% 이상으로 극도로 높은 편";
-    } else if (habitType === "typing_frenzy") {
-      habitContext = `문제를 깊이 읽지 않고 런타임 채점 버튼을 난타하며 즉흥적으로 해결하려 함 (평균 제출수 ${computedStats.avgSubmits.toFixed(1)}회, 합격률 ${(computedStats.passedCount / computedStats.totalCount * 100).toFixed(0)}%)`;
-    } else if (habitType === "mouse_wander") {
-      habitContext = "마우스 포인터가 브라우저 가시 영역 밖으로 이탈하여 대기 상태를 유지하는 시선 흐트러짐 비율이 30% 이상으로 높음";
-    }
-
-    const systemPrompt = `
-당신은 게임화 코딩 플랫폼 'Chickode(치코드)'의 귀엽고 똑똑한 AI 튜터 '병아리 선배'입니다.
-학습자의 나쁜 코딩 버릇을 교정하는 처방전을 200자 내외로 유머러스하면서도 따스하게 기술해 주세요.
-- 말투: "~구", "~해봐!", "~잖아!" 식의 '병아리 선배🐣' 전용 어조를 써서 친근하게 잔소리해야 합니다.
-- 텍스트 강조를 위해 <strong> 태그를 자연스럽게 섞어 작성해 주세요. (예: <strong>10초만 눈 디버깅</strong>해 봐!)
-`;
-
-    const userPrompt = `
-- 대상 학생: ${displayName}
-- 성적 스탯: 구현력 ${computedStats.implementation}점, 개념이해 ${computedStats.conceptual}점, 시선몰입 ${computedStats.focus}점
-- 감지된 나쁜 습관: [${habitContext}]
-
-이 학생의 정량 수치와 나쁜 습관 패턴에 정확히 핀포인트를 맞춘 따끔하고 실천적인 동적 교정 솔루션을 작성해줘!
-`;
-
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": CLAUDE_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-          "dangerouslyAllowBrowser": "true" // 브라우저 직호출 허용 설정
-        },
-        body: JSON.stringify({
-          model: "claude-3-5-flash-20241022",
-          max_tokens: 300,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }]
-        })
+      const { data, error } = await supabase.functions.invoke('claude-prescription', {
+        body: { habitType, stats: computedStats, displayName }
       });
-
-      if (!response.ok) throw new Error("Claude API Response Error");
-      const resData = await response.json();
-      return resData.content[0].text;
+      if (error) throw error;
+      return data?.prescription ?? "🐤 병아리 선배의 통신망이 잠깐 혼잡하구! 조금 있다가 다시 열어봐!";
     } catch (err) {
       console.error("Claude API 호출 실패:", err);
       return "🐤 우웅.. 병아리 선배의 통신망이 잠깐 혼잡하구! 조금 있다가 다시 열어봐!";
