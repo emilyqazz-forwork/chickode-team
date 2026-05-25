@@ -17,6 +17,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
 
   // --- [2. Ref(참조값) 정의] ---
   const navRef = useRef(null);            // 네비게이션 외부 클릭 감지를 위한 DOM 참조 변수
+  const topControlRef = useRef(null);     // 홈 우측 상단(프로필·설정·BGM) 클릭 감지용
   const settingsBtnRef = useRef(null);    // 설정 버튼 DOM 참조 변수 (튜토리얼 코치마크용)
   const location = useLocation();          // 현재 브라우저의 URL 주소 경로 감지 훅
   const bgmRef = useRef(null);            // 오디오 재생기(Audio 객체) 인스턴스를 유지하기 위한 Ref
@@ -184,8 +185,10 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
   // 호버 방식으로 전환되어 menuOpen은 호버 핸들러가 담당하므로, 여기선 showProfileMenu만 처리
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // 네비게이션 영역 밖을 클릭했을 때 열려있는 프로필 팝업을 닫음
-      if (navRef.current && !navRef.current.contains(e.target)) {
+      const inNav = navRef.current?.contains(e.target);
+      const inTopControl = topControlRef.current?.contains(e.target);
+      // 네비·홈 우측 컨트롤 밖을 클릭했을 때만 프로필 팝업 닫기
+      if (!inNav && !inTopControl) {
         setShowProfileMenu(false);
       }
     };
@@ -317,7 +320,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
 
       {/* --- [10. 오직 홈 화면('/')에서만 단독 노출되는 우측 상단 특수 제어 레이어] --- */}
       {location.pathname === '/' && (
-        <div className="top-control-layer">
+        <div className="top-control-layer" ref={topControlRef}>
           <div className="top-right-controls" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
 
             {/* 내부 특수 효과 스타일시트 삽입 (LP판 스핀 애니메이션 및 마우스 호버 효과 정밀 정의) */}
