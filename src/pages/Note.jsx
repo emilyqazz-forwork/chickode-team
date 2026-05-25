@@ -2,13 +2,28 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useNoteData } from '../hooks/useNoteData';
+import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from '../data/constants';
+
+// 언어 코드 → 한글 표시명
+const LANG_LABEL = { java: 'Java', py: 'Python', c: 'C언어' };
+
+// 난이도 코드 → 한글 표시명
+const LEVEL_LABEL = { basic: '기초', mid: '중급', adv: '고급' };
+
+// 언어 + 난이도로 단원 목록 가져오기
+function getChapters(lang, level) {
+  if (!lang || !level) return [];
+  const map = { java: JAVA_CHAPTERS, py: PYTHON_CHAPTERS, c: C_CHAPTERS };
+  return map[lang]?.[level] || [];
+}
 
 export function Note({ t }) {
   const navigate = useNavigate();
   const { wrongItems, loading } = useNoteData();
 
-  // 필터 상태
-  const [filterDifficulty, setFilterDifficulty] = useState('all');
+  // 필터 상태 — 언어 → 난이도 → 단원 순서로 연동
+  const [filterLang, setFilterLang] = useState('all');
+  const [filterLevel, setFilterLevel] = useState('all');
   const [filterChapter, setFilterChapter] = useState('all');
   const [filterWrongCount, setFilterWrongCount] = useState('desc');
   const [filterDate, setFilterDate] = useState(null);
@@ -21,7 +36,7 @@ export function Note({ t }) {
   const [analysisCache, setAnalysisCache] = useState({});
   const [analysisLoading, setAnalysisLoading] = useState({});
 
-  // 힌트 아코디언
+  // 병아리 쪽지 아코디언
   const [openHints, setOpenHints] = useState({});
 
   // AI 질문 모달
@@ -40,6 +55,24 @@ export function Note({ t }) {
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, []);
+
+  // 언어 바뀌면 난이도, 단원 초기화
+  const handleLangChange = (lang) => {
+    setFilterLang(lang);
+    setFilterLevel('all');
+    setFilterChapter('all');
+    setOpenDropdown(null);
+  };
+
+  // 난이도 바뀌면 단원 초기화
+  const handleLevelChange = (level) => {
+    setFilterLevel(level);
+    setFilterChapter('all');
+    setOpenDropdown(null);
+  };
+
+  // 현재 선택된 언어 + 난이도에 맞는 단원 목록
+  const availableChapters = getChapters(filterLang, filterLevel);
 
   // 아코디언 토글 + AI 분석 호출
   const toggleCard = async (id, item) => {
@@ -86,7 +119,7 @@ export function Note({ t }) {
         return (
           <div key={i}>
             <span style={{ background: 'rgba(255,80,80,0.2)', color: '#ff9999', padding: '0 4px', borderRadius: '3px' }}>
-              {line.replace('________', '________')}
+              {line}
             </span>
             {userCode && (
               <div style={{ color: '#f0a500', fontStyle: 'italic' }}>
@@ -103,19 +136,28 @@ export function Note({ t }) {
   // 필터링 + 정렬
   const getFiltered = () => {
     let list = [...wrongItems];
-    if (filterDifficulty !== 'all') list = list.filter(i => i.unit_level === filterDifficulty);
-    if (filterChapter !== 'all') list = list.filter(i => String(i.chapterNum) === String(filterChapter));
+
+    // 언어 필터
+    if (filterLang !== 'all') list = list.filter(i => i.lang === filterLang);
+
+    // 난이도 필터
+    if (filterLevel !== 'all') list = list.filter(i => i.level === filterLevel);
+
+    // 단원 필터
+    if (filterChapter !== 'all') list = list.filter(i => i.chapterId === filterChapter);
+
+    // 날짜 필터
     if (filterDate) {
       const selected = new Date(filterDate).toDateString();
       list = list.filter(i => new Date(i.created_at).toDateString() === selected);
     }
+
+    // 틀린 횟수 정렬
     if (filterWrongCount === 'desc') list.sort((a, b) => b.wrongCount - a.wrongCount);
     else if (filterWrongCount === 'asc') list.sort((a, b) => a.wrongCount - b.wrongCount);
+
     return list;
   };
-
-  // 챕터 목록 추출
-  const chapters = [...new Set(wrongItems.map(i => i.chapterNum).filter(Boolean))].sort((a, b) => a - b);
 
   const openAiModal = (item) => {
     setAiModal(item);
@@ -129,14 +171,18 @@ export function Note({ t }) {
     setChatInput('');
     setChatHistory(prev => [...prev, { role: 'user', text }, { role: 'bot', text: '생각중이야 삐약... 🤔', thinking: true }]);
     try {
-      const { data, error } = await supabase.functions.invoke('claude-prescription', {
+      const { data, error } = await supabase.functions.invoke('note-analysis', {
         body: {
-          habitType: 'tab_switch',
-          stats: {},
-          displayName: text,
+          templateCode: aiModal.templateCode || '',
+          userCode: aiModal.user_code || '',
+          correctAnswer: aiModal.correctAnswer || '',
+          title: aiModal.title || '',
+          description: text,
+          unitLevel: aiModal.unit_level || '기초',
         }
       });
-      setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: data?.prescription || '답변을 불러오지 못했어 삐약!' }]);
+      if (error) throw error;
+      setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: data?.hint || '답변을 불러오지 못했어 삐약!' }]);
     } catch {
       setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: '서버와 연결되지 않아서 대답하기 어려워 삐약! 🐥' }]);
     }
@@ -158,16 +204,18 @@ export function Note({ t }) {
   const dropdownStyle = {
     position: 'absolute', top: '110%', left: 0, zIndex: 100,
     background: 'white', border: '1px solid #e0d6c8', borderRadius: '10px',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: '140px', padding: '6px 0'
+    boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: '160px', padding: '6px 0'
   };
-  const dropdownItemStyle = {
-    padding: '8px 16px', fontSize: '13px', color: '#3e2723', cursor: 'pointer',
-    transition: 'background 0.15s'
-  };
+  const dropdownItemStyle = (active) => ({
+    padding: '8px 16px', fontSize: '13px', color: active ? '#3e2723' : '#5d4037',
+    fontWeight: active ? 'bold' : 'normal', cursor: 'pointer',
+    background: active ? '#f5f0e8' : 'transparent'
+  });
   const filterBtnStyle = (active) => ({
     padding: '6px 14px', borderRadius: '20px', border: '1px solid #d7ccc8',
     background: active ? '#5d4037' : 'white', color: active ? 'white' : '#5d4037',
-    fontSize: '13px', fontWeight: '500', cursor: 'pointer', position: 'relative'
+    fontSize: '13px', fontWeight: '500', cursor: 'pointer', position: 'relative',
+    whiteSpace: 'nowrap'
   });
 
   return (
@@ -184,70 +232,85 @@ export function Note({ t }) {
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
 
         {/* 필터 바 */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
 
-          {/* 난이도 */}
+          {/* 1. 언어 */}
           <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button style={filterBtnStyle(filterDifficulty !== 'all')} onClick={() => setOpenDropdown(openDropdown === 'diff' ? null : 'diff')}>
-              난이도 {filterDifficulty !== 'all' ? `· ${filterDifficulty}` : ''} ▾
+            <button style={filterBtnStyle(filterLang !== 'all')} onClick={() => setOpenDropdown(openDropdown === 'lang' ? null : 'lang')}>
+              {filterLang === 'all' ? '언어' : LANG_LABEL[filterLang]} ▾
             </button>
-            {openDropdown === 'diff' && (
+            {openDropdown === 'lang' && (
               <div style={dropdownStyle}>
-                {['all', '기초', '중급', '고급'].map(v => (
-                  <div key={v} style={{ ...dropdownItemStyle, fontWeight: filterDifficulty === v ? 'bold' : 'normal' }}
-                    onClick={() => { setFilterDifficulty(v); setOpenDropdown(null); }}>
-                    {v === 'all' ? '전체' : v}
-                  </div>
+                <div style={dropdownItemStyle(filterLang === 'all')} onClick={() => handleLangChange('all')}>전체</div>
+                {Object.entries(LANG_LABEL).map(([key, label]) => (
+                  <div key={key} style={dropdownItemStyle(filterLang === key)} onClick={() => handleLangChange(key)}>{label}</div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* 챕터 */}
+          {/* 2. 난이도 — 언어 선택 시에만 활성화 */}
           <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button style={filterBtnStyle(filterChapter !== 'all')} onClick={() => setOpenDropdown(openDropdown === 'ch' ? null : 'ch')}>
-              챕터 {filterChapter !== 'all' ? `· Ch.${filterChapter}` : ''} ▾
+            <button
+              style={{ ...filterBtnStyle(filterLevel !== 'all'), opacity: filterLang === 'all' ? 0.4 : 1, cursor: filterLang === 'all' ? 'not-allowed' : 'pointer' }}
+              onClick={() => { if (filterLang !== 'all') setOpenDropdown(openDropdown === 'level' ? null : 'level'); }}
+            >
+              {filterLevel === 'all' ? '난이도' : LEVEL_LABEL[filterLevel]} ▾
+            </button>
+            {openDropdown === 'level' && (
+              <div style={dropdownStyle}>
+                <div style={dropdownItemStyle(filterLevel === 'all')} onClick={() => handleLevelChange('all')}>전체</div>
+                {Object.entries(LEVEL_LABEL).map(([key, label]) => (
+                  <div key={key} style={dropdownItemStyle(filterLevel === key)} onClick={() => handleLevelChange(key)}>{label}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 3. 단원 — 언어 + 난이도 선택 시에만 활성화 */}
+          <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button
+              style={{ ...filterBtnStyle(filterChapter !== 'all'), opacity: (filterLang === 'all' || filterLevel === 'all') ? 0.4 : 1, cursor: (filterLang === 'all' || filterLevel === 'all') ? 'not-allowed' : 'pointer' }}
+              onClick={() => { if (filterLang !== 'all' && filterLevel !== 'all') setOpenDropdown(openDropdown === 'ch' ? null : 'ch'); }}
+            >
+              {filterChapter === 'all' ? '단원' : availableChapters.find(c => c.id === filterChapter)?.title?.split(':')[1]?.trim() || '단원'} ▾
             </button>
             {openDropdown === 'ch' && (
-              <div style={dropdownStyle}>
-                <div style={{ ...dropdownItemStyle, fontWeight: filterChapter === 'all' ? 'bold' : 'normal' }}
-                  onClick={() => { setFilterChapter('all'); setOpenDropdown(null); }}>전체</div>
-                {chapters.map(ch => (
-                  <div key={ch} style={{ ...dropdownItemStyle, fontWeight: String(filterChapter) === String(ch) ? 'bold' : 'normal' }}
-                    onClick={() => { setFilterChapter(ch); setOpenDropdown(null); }}>
-                    Ch.{ch}
+              <div style={{ ...dropdownStyle, minWidth: '200px' }}>
+                <div style={dropdownItemStyle(filterChapter === 'all')} onClick={() => { setFilterChapter('all'); setOpenDropdown(null); }}>전체</div>
+                {availableChapters.map(ch => (
+                  <div key={ch.id} style={dropdownItemStyle(filterChapter === ch.id)} onClick={() => { setFilterChapter(ch.id); setOpenDropdown(null); }}>
+                    {ch.title}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* 틀린 횟수 */}
+          {/* 4. 틀린 횟수 */}
           <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
             <button style={filterBtnStyle(false)} onClick={() => setOpenDropdown(openDropdown === 'wc' ? null : 'wc')}>
               틀린 횟수 ▾
             </button>
             {openDropdown === 'wc' && (
               <div style={dropdownStyle}>
-                <div style={{ ...dropdownItemStyle, fontWeight: filterWrongCount === 'desc' ? 'bold' : 'normal' }}
-                  onClick={() => { setFilterWrongCount('desc'); setOpenDropdown(null); }}>많은 순</div>
-                <div style={{ ...dropdownItemStyle, fontWeight: filterWrongCount === 'asc' ? 'bold' : 'normal' }}
-                  onClick={() => { setFilterWrongCount('asc'); setOpenDropdown(null); }}>적은 순</div>
+                <div style={dropdownItemStyle(filterWrongCount === 'desc')} onClick={() => { setFilterWrongCount('desc'); setOpenDropdown(null); }}>많은 순</div>
+                <div style={dropdownItemStyle(filterWrongCount === 'asc')} onClick={() => { setFilterWrongCount('asc'); setOpenDropdown(null); }}>적은 순</div>
               </div>
             )}
           </div>
 
-          {/* 일시 */}
+          {/* 5. 일시 */}
           <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
             <button style={filterBtnStyle(!!filterDate)} onClick={() => setOpenDropdown(openDropdown === 'date' ? null : 'date')}>
-              일시 {filterDate ? `· ${filterDate}` : ''} ▾
+              {filterDate ? filterDate : '일시'} ▾
             </button>
             {openDropdown === 'date' && (
               <div style={{ ...dropdownStyle, padding: '10px' }}>
                 <input type="date" value={filterDate || ''} onChange={e => { setFilterDate(e.target.value); setOpenDropdown(null); }}
                   style={{ border: '1px solid #d7ccc8', borderRadius: '6px', padding: '4px 8px', fontSize: '13px' }} />
                 {filterDate && (
-                  <div style={{ ...dropdownItemStyle, color: '#ef5350', marginTop: '4px' }}
+                  <div style={{ ...dropdownItemStyle(false), color: '#ef5350', marginTop: '4px' }}
                     onClick={() => { setFilterDate(null); setOpenDropdown(null); }}>초기화</div>
                 )}
               </div>
@@ -289,27 +352,40 @@ export function Note({ t }) {
                       {item.title}
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {/* 언어 태그 */}
+                      {item.lang && (
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#e3f2fd', color: '#1565c0' }}>
+                          {LANG_LABEL[item.lang] || item.lang}
+                        </span>
+                      )}
+                      {/* 챕터 태그 */}
                       {item.chapterNum && (
-                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#efebe9', color: '#5d4037' }}>Ch.{item.chapterNum}</span>
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#efebe9', color: '#5d4037' }}>
+                          Ch.{item.chapterNum}
+                        </span>
                       )}
+                      {/* 난이도 태그 */}
                       {item.unit_level && (
-                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#e8f5e9', color: '#2e7d32' }}>{item.unit_level}</span>
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#e8f5e9', color: '#2e7d32' }}>
+                          {item.unit_level}
+                        </span>
                       )}
+                      {/* 틀린 횟수 태그 */}
                       <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#ffebee', color: '#c62828', fontWeight: 'bold' }}>
                         틀린 횟수 {item.wrongCount}회
                       </span>
+                      {/* 날짜 태그 */}
                       <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#f5f0e8', color: '#8d6e63' }}>
                         {new Date(item.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
-                  <span style={{ fontSize: '18px', color: '#8d6e63', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                  <span style={{ fontSize: '18px', color: '#8d6e63', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0 }}>▾</span>
                 </div>
 
                 {/* 아코디언 바디 */}
                 {isOpen && (
                   <div style={{ borderTop: '1px solid #f5f0e8', padding: '18px' }}>
-
                     {isAnalysisLoading ? (
                       <div style={{ textAlign: 'center', padding: '24px', color: '#8d6e63', fontSize: '0.9rem' }}>
                         🐣 병아리 선배가 분석하고 있구... 📝
