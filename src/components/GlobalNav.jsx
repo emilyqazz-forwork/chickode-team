@@ -338,69 +338,14 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
               /* ── 설정 + 프로필 가로 행 ── */
               .home-top-actions { display: flex; justify-content: flex-end; width: 100%; }
 
-              /* grid → flex로 전환, 설정버튼(이미지+라벨 묶음)과 프로필 바를 가로 배치 */
+              /* 프로필 바 가로 배치 */
               .home-settings-wrap {
                 display: flex;
                 flex-direction: row;
                 align-items: flex-end;
-                gap: clamp(4px, 1vw, 12px); /* 화면 크기에 따라 간격 자동 조정 */
+                justify-content: flex-end;
+                gap: clamp(4px, 1vw, 12px);
               }
-
-              /* ── 설정 버튼 + 라벨을 세로로 묶는 래퍼 ── */
-              .home-settings-btn-wrap {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                flex-shrink: 0;
-              }
-
-              /* ── 설정 버튼: display block으로 클릭 영역을 이미지 크기로만 제한 ── */
-              /* 라벨은 버튼 밖 별도 <span>으로 분리되어 있어 프로필 바와 클릭 영역 겹침 없음 */
-              .home-settings-btn {
-                display: block !important;
-                background: none !important;
-                border: none !important;
-                box-shadow: none !important;
-                width: auto !important;
-                height: auto !important;
-                padding: 0 !important;
-                line-height: 0;
-                cursor: pointer;
-              }
-              .home-settings-btn:hover, .home-settings-btn:active { transform: none !important; }
-
-              /* 설정 이미지: 96px 기준, 화면이 좁아지면 clamp로 자동 축소 */
-              .home-settings-img {
-                width: clamp(52px, 8vw, 96px);
-                height: auto;
-                max-height: 96px;
-                object-fit: contain;
-                object-position: center bottom;
-                mix-blend-mode: multiply;
-                transition: transform 0.25s ease, filter 0.25s ease;
-                display: block;
-                margin: 18px 0 -2px 0;
-                vertical-align: bottom;
-              }
-              .home-settings-wrap:hover .home-settings-img { filter: drop-shadow(0 0 6px rgba(255, 235, 130, 1)) drop-shadow(0 0 14px rgba(255, 210, 70, 0.9)) drop-shadow(0 0 26px rgba(255, 193, 7, 0.55)); }
-              .home-settings-wrap:active .home-settings-img { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(255, 245, 170, 1)) drop-shadow(0 0 18px rgba(255, 220, 90, 1)) drop-shadow(0 0 34px rgba(255, 193, 7, 0.8)); }
-
-              /* 설정 라벨: 화면 좁아지면 폰트 크기 자동 축소 */
-              .home-settings-label {
-                font-family: 'Jua', sans-serif;
-                font-size: clamp(11px, 1.2vw, 15px);
-                font-weight: 700;
-                color: #3e2723;
-                text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8);
-                pointer-events: none;
-                white-space: nowrap;
-                line-height: 1;
-                margin-top: 2px;
-                display: block;
-                text-align: center;
-              }
-              .home-settings-wrap:hover .home-settings-label { text-shadow: 0 0 8px rgba(255, 220, 100, 0.95), 0 0 16px rgba(255, 193, 7, 0.5), 0 1px 0 rgba(255, 248, 216, 0.8); }
-              .home-settings-wrap:active .home-settings-label { text-shadow: 0 0 10px rgba(255, 235, 140, 1), 0 0 20px rgba(255, 200, 60, 0.85), 0 1px 0 rgba(255, 248, 216, 0.8); }
 
               /* ── 프로필 바: 공간 부족 시 먼저 줄어드는 flex 설정 ── */
               .home-login-action {
@@ -460,24 +405,6 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
 
             <div className="home-top-actions">
               <div className="home-settings-wrap">
-
-                {/* 설정 버튼과 라벨을 별도 래퍼(.home-settings-btn-wrap)로 묶어 세로 배치 */}
-                {/* 버튼 클릭 영역이 이미지 크기로만 제한되어 프로필 바와 겹치지 않음 */}
-                <div className="home-settings-btn-wrap">
-                  {/* 톱니바퀴 대신 귀여운 병아리집 모양의 대형 환경설정 바로가기 아이콘 버튼 */}
-                  <button
-                    ref={settingsBtnRef}
-                    id="globalSettingsBtn"
-                    className="settings-btn home-settings-btn"
-                    title={t('btn_setting')}
-                    onClick={onOpenSettings}
-                  >
-                    <img src="/images/home_settings.png" alt="" className="home-settings-img" />
-                  </button>
-                  {/* 라벨은 버튼 밖 별도 <span>으로 분리 - 버튼 클릭 영역에 포함되지 않음 */}
-                  <span className="home-settings-label">{t('btn_setting')}</span>
-                </div>
-
                 {/* [조건부 렌더링 A : 유저가 로그인 상태일 때 - 마이프로필 영역 출력] */}
                 {user ? (
                   <div className="home-login-action" style={{ position: 'relative' }}>
