@@ -9,6 +9,8 @@ import { addAttempt, getProfile } from '../state/app-state';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { python } from '@codemirror/lang-python';
+import { cpp } from '@codemirror/lang-cpp';
 
 // 📂 [분리 완료] 복잡한 CCTV 데이터 및 실시간 감지 함수 가져오기
 import {
@@ -42,7 +44,10 @@ export function Quiz({ t, params }) {
   const location = useLocation();
   const navigate = useNavigate();
   // 기본 단원 이름 및 난이도 폴백 매칭 구조
-  const settings = location.state || { count: 10, ratio: 50, chapter: 1, difficulty: '기초' };
+  const settings = location.state || { count: 10, ratio: 50, chapter: 1, difficulty: '기초', mustSolve: false };
+
+  // 🔒 [오답노트 모드] mustSolve: true면 정답 맞출 때까지 다음 문제로 못 넘어감
+  const mustSolve = settings.mustSolve || false;
 
   // 🛡️ [수정/설계] 컴포넌트 마운트 시 최초 1회만 고유 UUID를 발급하여 세션 ID로 삼습니다.
   // 이 가상 세션 ID는 user_behavior_logs와 submissions 테이블을 물리 변경 없이 논리적으로 묶어주는 열쇠가 됩니다.
@@ -97,6 +102,8 @@ export function Quiz({ t, params }) {
   const lastCodeEditRef = useRef(null);
   const lastMcqRef = useRef(null);
   const editorTypingTimeoutRef = useRef(null);
+  // 🔒 [오답노트 모드] 마지막 제출 정답 여부를 ref로 관리
+  const isCorrectRef = useRef(false);
   
   // 📊 [수정/지표] 세팅 모달에서 수렴한 count 정보를 분모 상태값(totalGoalCount)으로 선언합니다.
   // 이 값은 AI가 도중에 처방전을 발행해 챌린지 문제를 추가할 때 동적으로 확장(+1)됩니다.
@@ -210,6 +217,7 @@ export function Quiz({ t, params }) {
     setMouseOutCount(0);
     setSubmitCount(0);
     focusScoresRef.current = [];
+    isCorrectRef.current = false;
     
     if (chatHistory.length === 0) {
       setChatHistory([{ role: 'bot', text: tutorOpeningMessage(currentProblem, persona) }]);
@@ -430,6 +438,19 @@ export function Quiz({ t, params }) {
 
     // 1. 이미 제출 완료된 경우 동적 완수도 범위에 맞춰 페이지 전환 이동 제어
     if (isSubmitted) {
+      // 🔒 [오답노트 모드] 오답이면 다시 풀 수 있게 초기화, 다음 문제로 못 넘어감
+      if (mustSolve && !isCorrectRef.current) {
+        setIsSubmitted(false);
+        setCodeValue(currentProblem.template || '');
+        setResultStatus(t('quiz_result_wait'));
+        setResultColor('#d4d4d4');
+        setTermOutput([
+          { type: 'system', text: '> Chickode IDE Console v1.0.0' },
+          { type: 'system', text: '> Ready for compilation...' },
+          { type: 'system', text: '> 🔒 오답노트 모드: 정답을 맞춰야 다음으로 넘어갈 수 있어 삐약! 🐣' },
+        ]);
+        return;
+      }
       if (currentIndex + 1 < totalGoalCount && currentIndex + 1 < quizList.length) {
         setCurrentIndex((prev) => prev + 1);
         setIsSubmitted(false); 
@@ -457,6 +478,9 @@ export function Quiz({ t, params }) {
         : false;
       isCorrect = isStringMatch || isKeywordMatch;
     }
+
+    // 🔒 [오답노트 모드] 정답 여부를 ref에 저장
+    isCorrectRef.current = isCorrect;
 
     // 📊 [행동 데이터] 누적 평균 몰입도 산출 연산
     const scoresArray = focusScoresRef.current;
@@ -543,7 +567,8 @@ export function Quiz({ t, params }) {
         setCctvResultTone('wrong');
 
         // 🎯 [실시간 처방]: 최종 채점이 오답일 경우, AI 취약 저격형 챌린지 생성 함수를 동적 가동!
-        triggerAiProblemGeneration();
+        // 🔒 [오답노트 모드]에서는 AI 문제 생성 안 함
+        if (!mustSolve) triggerAiProblemGeneration();
       }
     }, 500);
   };
@@ -601,7 +626,11 @@ export function Quiz({ t, params }) {
                 : codeValue
             }
             height="350px"
-            extensions={[java()]}
+            extensions={[
+              currentProblem.unit?.includes('py') ? python() : 
+              currentProblem.unit?.includes('c') ? cpp() : 
+              java()
+            ]}
             theme={oneDark}
             onChange={(val) => {
               setCodeValue(val);
@@ -659,8 +688,15 @@ export function Quiz({ t, params }) {
         </div>
       </div>
       <div className="footer" style={{ marginTop: 'auto' }}>
+        {/* 🔒 [오답노트 모드] 오답이면 버튼 텍스트를 '다시 풀기'로 표시 */}
         <button className="clay-submit" onClick={handleSubmit} style={{ width: '100%' }}>
-          {isSubmitted ? (currentIndex + 1 < quizList.length ? '다음 문제 ➔' : '결과 보기 ➔') : t('btn_submit')}
+          {isSubmitted
+            ? mustSolve && !isCorrectRef.current
+              ? '다시 풀기 🔄'
+              : currentIndex + 1 < quizList.length
+                ? '다음 문제 ➔'
+                : '결과 보기 ➔'
+            : t('btn_submit')}
         </button>
       </div>
     </div>
@@ -677,6 +713,12 @@ export function Quiz({ t, params }) {
         <button id="backToMain" title="돌아가기" onClick={() => navigate(-1)}>❮</button>
         <div className="logo">CHICKODE</div>
         <div className="top-right-group">
+          {/* 🔒 [오답노트 모드] 배지 표시 */}
+          {mustSolve && (
+            <span className="chapter-badge" style={{ background: '#ef5350', color: 'white', fontFamily: "'Jua', sans-serif" }}>
+              🔒 오답노트 모드
+            </span>
+          )}
           <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{currentChapterObj.title}</span>
           <div className="user-tag">👤 {nickname} 님</div>
         </div>
