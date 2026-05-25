@@ -378,38 +378,40 @@ export function Quiz({ t, params }) {
     setTermOutput((prev) => [...prev, { type, text: `> ${msg}` }]);
 
   const handleSendChat = async (message = null, chipKeyword = null) => {
-    const text = message || chatInput.trim();
-    if (!text) return;
-    setChatInput('');
-    
-    const currentProblem = quizList[currentIndex];
-    setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: '생각 중이야 삐약... 🐥', thinking: true }]);
-    
-    try {
-      const response = await fetch('http://127.0.0.1:8000/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_question: text,
-          user_code: codeValue,
-          problem_context: `${currentProblem.title}: ${currentProblem.desc}`,
-          history: chatHistory.map(h => ({ role: h.role === 'bot' ? 'assistant' : 'user', text: h.text }))
-        })
-      });
+  const text = message || chatInput.trim();
+  if (!text) return;
+  setChatInput('');
+  
+  const currentProblem = quizList[currentIndex];
+  // 💡 thinking 상태를 추가해 UI적으로 AI가 생각 중임을 알림
+  setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: '생각 중이야 삐약... 🐥', thinking: true }]);
+  
+  try {
+    const response = await fetch('http://127.0.0.1:8000/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_question: text,
+        user_code: codeValue,
+        problem_context: `${currentProblem.title}: ${currentProblem.desc}`,
+        // 💡 챗봇 기록(history)을 명확한 역할 기반으로 정제해서 보냄
+        history: chatHistory.map(h => ({ 
+           role: h.role === 'bot' ? 'assistant' : 'user', 
+           text: h.text 
+        }))
+      })
+    });
 
-      const data = await response.json();
-      
-      setChatHistory((prev) => [
-        ...prev.filter((m) => !m.thinking),
-        { role: 'bot', text: data.answer }
-      ]);
-    } catch (err) {
-      console.error("백엔드 연동 에러:", err);
-      const kws = currentProblem?.keywords || [];
-      const mock = `지금 네트워크 환경이 잠시 불안정해서 삐약이가 직접 비밀 명세를 꺼내왔어! 문제 「${currentProblem?.title}」의 핵심 부품인 「${kws[0] || '기초 용어'}」에 초점을 맞춰 코드를 고쳐볼까? (오프라인 모드)`;
-      setChatHistory((prev) => [...prev.filter((m) => !m.thinking), { role: 'bot', text: mock }]);
-    }
-  };
+    const data = await response.json();
+    setChatHistory((prev) => [
+      ...prev.filter((m) => !m.thinking),
+      { role: 'bot', text: data.answer }
+    ]);
+  } catch (err) {
+    console.error("백엔드 통신 에러:", err);
+    setChatHistory((prev) => [...prev.filter(m => !m.thinking), { role: 'bot', text: "네트워크가 불안정해 삐약! 🐥" }]);
+  }
+};
 
   // 🎯 [신규 기능] 학습자 맞춤형 AI 보강 챌린지 문제 동적 처방 및 세션 확장 연동
   const triggerAiProblemGeneration = async () => {
@@ -452,9 +454,7 @@ export function Quiz({ t, params }) {
     const currentProblem = quizList[currentIndex];
     if (!currentProblem) return;
 
-    // 1. 이미 제출 완료된 경우 동적 완수도 범위에 맞춰 페이지 전환 이동 제어
     if (isSubmitted) {
-      // 🔒 [오답노트 모드] 오답이면 다시 풀 수 있게 초기화, 다음 문제로 못 넘어감
       if (mustSolve && !isCorrectRef.current) {
         setIsSubmitted(false);
         setCodeValue(currentProblem.template || '');
@@ -471,12 +471,12 @@ export function Quiz({ t, params }) {
         setCurrentIndex((prev) => prev + 1);
         setIsSubmitted(false); 
       } else {
-        // AI가 부여한 동적 보완 영역까지 전체 마일스톤 완수 시 최종 리포트 대시보드로 이동 (동적 분모 반영)
         navigate('/result', { state: { total: totalGoalCount, correct: correctCount } });
       }
       return;
     }
 
+    // 💡 변수 선언은 딱 한 번만!
     let isCorrect = false;
 
     if (currentProblem.type === 'multiple' || currentProblem.type === 'ox') {
@@ -484,20 +484,27 @@ export function Quiz({ t, params }) {
         alert('답을 선택해주세요!');
         return;
       }
-      isCorrect = selectedOption === currentProblem.answer;
+      isCorrect = (selectedOption === currentProblem.answer);
     } else {
-      const userCodeClean = String(codeValue || '').replace(/\s+/g, '');
-      const dbAnswerClean = String(currentProblem?.answer || '').replace(/\s+/g, '');
-      const isStringMatch = userCodeClean.includes(dbAnswerClean) && dbAnswerClean !== '';
-      const isKeywordMatch = currentProblem.keywords && currentProblem.keywords.length > 0
-        ? currentProblem.keywords.every((kw) => codeValue.includes(kw))
-        : false;
-      isCorrect = isStringMatch || isKeywordMatch;
+      // 1. 비교용 클렌징 코드
+      const userCodeClean = String(codeValue || '').replace(/\s+/g, '').toLowerCase();
+      const dbAnswerClean = String(currentProblem?.answer || '').replace(/\s+/g, '').toLowerCase();
+
+      // 2. 채점 로직 통합: 
+      // 레벨 5는 전체 일치 검사, 레벨 1~3은 포함 여부(또는 키워드) 검사
+      if (currentProblem.code_level === 5) {
+        isCorrect = (userCodeClean === dbAnswerClean);
+      } else {
+        const isStringMatch = (dbAnswerClean !== '' && userCodeClean.includes(dbAnswerClean));
+        const isKeywordMatch = currentProblem.keywords && currentProblem.keywords.length > 0
+          ? currentProblem.keywords.every((kw) => codeValue.toLowerCase().includes(kw.toLowerCase()))
+          : false;
+        isCorrect = isStringMatch || isKeywordMatch;
+      }
     }
 
-    // 🔒 [오답노트 모드] 정답 여부를 ref에 저장
     isCorrectRef.current = isCorrect;
-
+    
     // 📊 [행동 데이터] 누적 평균 몰입도 산출 연산
     const scoresArray = focusScoresRef.current;
     const avgFocusScore = scoresArray.length > 0
