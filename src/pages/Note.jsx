@@ -190,18 +190,18 @@ export function Note({ t }) {
     setChatInput('');
     setChatHistory(prev => [...prev, { role: 'user', text }, { role: 'bot', text: '생각중이야 삐약... 🤔', thinking: true }]);
     try {
-      const { data, error } = await supabase.functions.invoke('note-analysis', {
+      const { data, error } = await supabase.functions.invoke('note-chat', {
         body: {
-          templateCode: aiModal.templateCode || '',
-          userCode: aiModal.user_code || '',
-          correctAnswer: aiModal.correctAnswer || '',
+          question: text,
+          chatHistory: chatHistory.filter(m => !m.thinking),
           title: aiModal.title || '',
-          description: text,
-          unitLevel: aiModal.unit_level || '기초',
+          templateCode: aiModal.templateCode || '',
+          correctAnswer: aiModal.correctAnswer || '',
+          userCode: aiModal.user_code || '',
         }
       });
       if (error) throw error;
-      setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: data?.hint || '답변을 불러오지 못했어 삐약!' }]);
+      setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: data?.answer || '답변을 불러오지 못했어 삐약!' }]);
     } catch {
       setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: '서버와 연결되지 않아서 대답하기 어려워 삐약! 🐥' }]);
     }
