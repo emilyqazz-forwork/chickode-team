@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useNoteData } from '../hooks/useNoteData';
 import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from '../data/constants';
+import CodeMirror from '@uiw/react-codemirror';
+import { java } from '@codemirror/lang-java';
+import { python } from '@codemirror/lang-python';
+import { cpp } from '@codemirror/lang-cpp';
+import { oneDark } from '@codemirror/theme-one-dark';
 
 // 언어 코드 → 한글 표시명
 const LANG_LABEL = { java: 'Java', py: 'Python', c: 'C언어' };
@@ -15,6 +20,13 @@ function getChapters(lang, level) {
   if (!lang || !level) return [];
   const map = { java: JAVA_CHAPTERS, py: PYTHON_CHAPTERS, c: C_CHAPTERS };
   return map[lang]?.[level] || [];
+}
+
+// 언어별 CodeMirror extension 선택
+function getLangExtension(lang) {
+  if (lang === 'py') return python();
+  if (lang === 'c') return cpp();
+  return java(); // 기본값 java
 }
 
 export function Note({ t }) {
@@ -74,8 +86,13 @@ export function Note({ t }) {
   // 현재 선택된 언어 + 난이도에 맞는 단원 목록
   const availableChapters = getChapters(filterLang, filterLevel);
 
-  // 아코디언 토글 + AI 분석 호출
+  // 아코디언 토글 + AI 분석 호출 (처음 열 때만 Claude API 호출, 이후엔 캐시 사용)
   const toggleCard = async (id, item) => {
+
+    console.log('templateCode:', item.templateCode);
+    console.log('user_code:', item.user_code);
+    console.log('correctAnswer:', item.correctAnswer);
+
     const isOpen = openCards[id];
     setOpenCards(prev => ({ ...prev, [id]: !isOpen }));
 
@@ -99,7 +116,7 @@ export function Note({ t }) {
         setAnalysisCache(prev => ({
           ...prev,
           [id]: {
-            annotatedAnswer: item.correctAnswer || '',
+            annotatedAnswer: null,
             wrongReason: '분석을 불러오지 못했어요.',
             hint: '🐤 병아리 선배가 잠시 자리를 비웠구... 조금 있다가 다시 열어봐 삐약!'
           }
@@ -110,27 +127,29 @@ export function Note({ t }) {
     }
   };
 
-  // 빈칸 하이라이팅 + 내 답 주석 처리
-  const renderTemplateWithHighlight = (templateCode, userCode) => {
-    if (!templateCode) return null;
-    const lines = templateCode.replace(/\\n/g, '\n').split('\n');
-    return lines.map((line, i) => {
-      if (line.includes('________')) {
-        return (
-          <div key={i}>
-            <span style={{ background: 'rgba(255,80,80,0.2)', color: '#ff9999', padding: '0 4px', borderRadius: '3px' }}>
-              {line}
-            </span>
-            {userCode && (
-              <div style={{ color: '#f0a500', fontStyle: 'italic' }}>
-                {'  // 🟡 내가 쓴 답: '}{userCode}
-              </div>
-            )}
-          </div>
-        );
-      }
-      return <div key={i}>{line}</div>;
-    });
+  // 내가 쓴 답 — ________를 user_code로 교체한 문자열 반환
+  const renderMyCodeValue = (templateCode, userCode) => {
+    if (!templateCode) return '// 코드 없음';
+    const cleaned = templateCode.replace(/\\n/g, '\n');
+    // 케이스 1: ________ 있으면 교체
+    if (cleaned.includes('________')) {
+      return cleaned.replace('________', userCode || '');
+    }
+    // 케이스 2, 3: ________ 없으면 template + userCode 병합
+    return cleaned + '\n\n// 🟡 내가 쓴 답:\n' + (userCode || '');
+  };
+
+  // 정답 코드 — Claude 주석 있으면 annotatedAnswer 사용, 없으면 template + answer 교체
+  const renderCorrectCodeValue = (templateCode, answer, annotatedAnswer) => {
+    if (annotatedAnswer) return annotatedAnswer.replace(/\\n/g, '\n');
+    if (!templateCode) return (answer || '').replace(/\\n/g, '\n');
+    const cleaned = templateCode.replace(/\\n/g, '\n');
+    // 케이스 1: ________ 있으면 교체
+    if (cleaned.includes('________')) {
+      return cleaned.replace('________', (answer || '').replace(/\\n/g, '\n'));
+    }
+    // 케이스 3: template이 주석 한 줄이면 answer가 전체 코드
+    return (answer || '').replace(/\\n/g, '\n');
   };
 
   // 필터링 + 정렬
@@ -219,7 +238,8 @@ export function Note({ t }) {
   });
 
   return (
-    <div style={{ background: '#f5f0e8', minHeight: '100vh', width: '100vw', boxSizing: 'border-box', fontFamily: 'sans-serif' }}>
+    // position: fixed + height: 100vh + overflowY: auto — 배경 이미지 완전히 덮고 스크롤 가능
+    <div style={{ background: '#f5f0e8', position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', overflowY: 'auto', overflowX: 'hidden', fontFamily: 'sans-serif', zIndex: 10 }}>
 
       {/* 상단 네비 */}
       <div style={{ background: '#3e2723', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -386,34 +406,45 @@ export function Note({ t }) {
                 {/* 아코디언 바디 */}
                 {isOpen && (
                   <div style={{ borderTop: '1px solid #f5f0e8', padding: '18px' }}>
+
+                    {/* 내가 쓴 답 — 즉시 표시 */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#8d6e63', marginBottom: '8px' }}>내가 쓴 답</div>
+                      <CodeMirror
+                        value={renderMyCodeValue(item.templateCode, item.user_code)}
+                        extensions={[getLangExtension(item.lang)]}
+                        theme={oneDark}
+                        editable={false}
+                        basicSetup={{ lineNumbers: true, foldGutter: false }}
+                        style={{ borderRadius: '10px', overflow: 'hidden', fontSize: '12px' }}
+                      />
+                    </div>
+
+                    {/* 정답 코드 — 즉시 표시, Claude 완료 후 주석 추가 */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#8d6e63', marginBottom: '8px' }}>
+                        정답 코드 {isAnalysisLoading && <span style={{ color: '#ffa726', fontWeight: 'normal' }}>— 🐣 주석 추가 중...</span>}
+                      </div>
+                      <CodeMirror
+                        value={renderCorrectCodeValue(item.templateCode, item.correctAnswer, analysis?.annotatedAnswer)}
+                        extensions={[getLangExtension(item.lang)]}
+                        theme={oneDark}
+                        editable={false}
+                        basicSetup={{ lineNumbers: true, foldGutter: false }}
+                        style={{ borderRadius: '10px', overflow: 'hidden', fontSize: '12px' }}
+                      />
+                    </div>
+
+                    {/* 틀린 이유 — Claude 완료 후 표시 */}
                     {isAnalysisLoading ? (
-                      <div style={{ textAlign: 'center', padding: '24px', color: '#8d6e63', fontSize: '0.9rem' }}>
+                      <div style={{ padding: '12px', background: '#f5f0e8', borderRadius: '8px', fontSize: '13px', color: '#8d6e63', marginBottom: '12px' }}>
                         🐣 병아리 선배가 분석하고 있구... 📝
                       </div>
                     ) : (
                       <>
-                        {/* 내가 쓴 답 */}
-                        <div style={{ marginBottom: '16px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#8d6e63', marginBottom: '8px' }}>내가 쓴 답</div>
-                          <div style={{ background: '#1e1e1e', borderRadius: '10px', padding: '14px', fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.8', overflowX: 'auto' }}>
-                            {renderTemplateWithHighlight(item.templateCode, item.user_code)}
-                          </div>
-                        </div>
-
-                        {/* 정답 코드 (주석 포함) */}
-                        <div style={{ marginBottom: '16px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#8d6e63', marginBottom: '8px' }}>정답 코드</div>
-                          <div style={{ background: '#1e1e1e', borderRadius: '10px', padding: '14px', fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.8', overflowX: 'auto' }}>
-                            {(analysis?.annotatedAnswer || item.correctAnswer || '').split('\n').map((line, i) => (
-                              <div key={i} style={{ color: line.trim().startsWith('//') ? '#6a9955' : '#d4d4d4' }}>{line}</div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 틀린 이유 */}
                         <div style={{ marginBottom: '12px', padding: '12px', background: '#fff5f5', borderLeft: '4px solid #ef5350', borderRadius: '0 8px 8px 0', fontSize: '13px', color: '#c62828', lineHeight: '1.6' }}>
                           <strong>왜 틀렸을까?</strong><br />
-                          {analysis?.wrongReason || '분석 중...'}
+                          {analysis?.wrongReason || '분석을 불러오지 못했어요.'}
                         </div>
 
                         {/* 병아리 쪽지 아코디언 */}
@@ -428,20 +459,20 @@ export function Note({ t }) {
                               dangerouslySetInnerHTML={{ __html: analysis?.hint || '힌트를 불러오지 못했어 삐약!' }} />
                           )}
                         </div>
-
-                        {/* 액션 버튼 */}
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          <button onClick={() => navigate('/play', { state: { chapter: item.chapterNum, count: 5, ratio: 50, difficulty: item.unit_level || '기초' } })}
-                            style={{ padding: '8px 16px', borderRadius: '8px', background: '#ff8f00', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                            다시 풀기
-                          </button>
-                          <button onClick={() => openAiModal(item)}
-                            style={{ padding: '8px 16px', borderRadius: '8px', background: '#5d4037', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                            AI에게 질문
-                          </button>
-                        </div>
                       </>
                     )}
+
+                    {/* 액션 버튼 */}
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button onClick={() => navigate('/play', { state: { chapter: item.chapterNum, count: 5, ratio: 50, difficulty: item.unit_level || '기초' } })}
+                        style={{ padding: '8px 16px', borderRadius: '8px', background: '#ff8f00', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                        다시 풀기
+                      </button>
+                      <button onClick={() => openAiModal(item)}
+                        style={{ padding: '8px 16px', borderRadius: '8px', background: '#5d4037', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                        AI에게 질문
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

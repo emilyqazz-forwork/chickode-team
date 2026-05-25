@@ -18,24 +18,27 @@ serve(async (req) => {
 반드시 JSON만 출력하고 다른 텍스트는 절대 쓰지 마.
 
 {
-  "annotatedAnswer": "정답 코드 전체를 핵심 줄마다 한국어 주석을 달아서 반환. 주석은 // 형식으로.",
+  "annotatedAnswer": "정답 코드 전체를 반환. 인라인 주석은 핵심 줄 오른쪽에 '   // ' 형식으로 짧게 (5자 이내), 1-2개만. 위에 주석 금지. 코드 맨 아래에 /* 핵심 개념 정리: 로 시작하는 블록 주석 추가. 블록 주석 안에는 코드에 등장한 모든 문법/메서드/개념을 초보자 눈높이에 맞게 하나씩 설명. 예: import java.util.Scanner가 뭔지, new Scanner(System.in)이 뭔지, nextInt() vs next() 차이, if문 조건식이 왜 그렇게 쓰였는지, System.out.println이 뭔지 등. 각 항목은 '- 개념명: 설명' 형식으로. */ 로 닫기."
   "wrongReason": "틀린 이유를 1-2문장으로 객관적이고 명확하게. 예: '조건식의 비교 연산자가 누락되었습니다.'",
   "hint": "병아리 선배🐣 말투로 따뜻하게 힌트. '~구!', '~해봐!', '삐약!' 어조. <strong> 태그로 핵심 키워드 강조. 2-3문장."
 }`;
 
     const userPrompt = `문제 제목: ${title}
-문제 설명: ${description}
-난이도: ${unitLevel}
-템플릿 코드: 
-${templateCode}
+        문제 설명: ${description}
+        난이도: ${unitLevel}
 
-학습자가 제출한 답:
-${userCode}
+        템플릿 코드 (빈칸 포함):
+        ${templateCode}
 
-정답:
-${correctAnswer}
+        정답 (빈칸에 들어갈 내용):
+        ${correctAnswer}
 
-위 정보를 바탕으로 분석해줘!`;
+        학습자가 제출한 답:
+        ${userCode}
+
+        [중요] annotatedAnswer는 반드시 템플릿 코드의 빈칸(________)을 정답으로 채운 전체 코드에 각 줄마다 한국어 주석을 달아서 반환해줘. answer만 반환하지 말고 전체 코드를 반환해야 해!
+
+        위 정보를 바탕으로 분석해줘!`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
