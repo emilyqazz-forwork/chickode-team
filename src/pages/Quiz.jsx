@@ -40,6 +40,12 @@ const generateVirtualSessionId = () => {
   });
 };
 
+function getDisplayNameFromAuthUser(user) {
+  if (!user) return getProfile().name;
+  const meta = user.user_metadata || {};
+  return meta.username || meta.nickname || user.email?.split('@')[0] || getProfile().name;
+}
+
 export function Quiz({ t, params }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -112,6 +118,16 @@ export function Quiz({ t, params }) {
   const [mouseOutCount, setMouseOutCount] = useState(0);
   const [submitCount, setSubmitCount] = useState(0);
   const focusScoresRef = useRef([]);
+  const [displayName, setDisplayName] = useState(() => getProfile().name);
+
+  useEffect(() => {
+    const sync = (user) => setDisplayName(getDisplayNameFromAuthUser(user));
+    supabase.auth.getSession().then(({ data: { session } }) => sync(session?.user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      sync(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const bumpActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
@@ -583,9 +599,6 @@ export function Quiz({ t, params }) {
   }
 
   const currentProblem = quizList[currentIndex];
-  const savedUser = JSON.parse(localStorage.getItem('chickode_user') || 'null');
-  const rawNickname = savedUser ? savedUser.nickname : getProfile().name;
-  const nickname = rawNickname && rawNickname.includes('상우') ? '게스트' : rawNickname;
 
   const nowCctv = Date.now();
   const isCodingProblem = currentProblem.type === 'coding';
@@ -720,7 +733,7 @@ export function Quiz({ t, params }) {
             </span>
           )}
           <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{currentChapterObj.title}</span>
-          <div className="user-tag">👤 {nickname} 님</div>
+          <div className="user-tag">👤 {displayName} 님</div>
         </div>
       </nav>
       <main className={`content${isChatOpen ? '' : ' content--quiz-chat-collapsed'}`}>
