@@ -1,43 +1,125 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAttempts } from '../state/app-state';
-
-const API_URL = import.meta.env.VITE_CHICKODE_SUPABASE_API_URL || 'http://localhost:8000';
+import { supabase } from '../supabaseClient';
+import { useNoteData } from '../hooks/useNoteData';
 
 export function Note({ t }) {
-  const [activeChapter, setActiveChapter] = useState('all');
-  const [activeSort, setActiveSort] = useState('newest');
-  const [wrongItems, setWrongItems] = useState([]);
-  const [chapterCounts, setChapterCounts] = useState({});
-  const [wrongCountMap, setWrongCountMap] = useState({});
-  const [aiModal, setAiModal] = useState(null); // { attempt }
+  const navigate = useNavigate();
+  const { wrongItems, loading } = useNoteData();
+
+  // 필터 상태
+  const [filterDifficulty, setFilterDifficulty] = useState('all');
+  const [filterChapter, setFilterChapter] = useState('all');
+  const [filterWrongCount, setFilterWrongCount] = useState('desc');
+  const [filterDate, setFilterDate] = useState(null);
+
+  // 드롭다운 열림 상태
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  // 아코디언 열림 상태 + AI 분석 캐시
+  const [openCards, setOpenCards] = useState({});
+  const [analysisCache, setAnalysisCache] = useState({});
+  const [analysisLoading, setAnalysisLoading] = useState({});
+
+  // 힌트 아코디언
+  const [openHints, setOpenHints] = useState({});
+
+  // AI 질문 모달
+  const [aiModal, setAiModal] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const chatDisplayRef = useRef(null);
-  const navigate = useNavigate();
-
-  /*전체 시도 기록 중 오답(isCorrect === false)만 골라내어 통계를 냅니다*/
-  useEffect(() => {
-    const allAttempts = getAttempts().filter(a => a && a.isCorrect === false);
-    const countMap = {};
-    const chCounts = {};
-    for (const a of allAttempts) {
-      const pid = a.problemId || a.title;
-      countMap[pid] = (countMap[pid] || 0) + 1;
-      if (a.chapter) chCounts[a.chapter] = (chCounts[a.chapter] || 0) + 1;
-    }
-    setWrongCountMap(countMap);
-    setChapterCounts(chCounts);
-    setWrongItems(allAttempts);
-  }, []);
 
   useEffect(() => {
     if (chatDisplayRef.current) chatDisplayRef.current.scrollTop = chatDisplayRef.current.scrollHeight;
   }, [chatHistory]);
 
-  const openAiModal = (attempt) => {
-    setAiModal(attempt);
-    setChatHistory([{ role: 'bot', text: `'${attempt.title}' 문제에 대해 궁금한 거 물어봐! 삐약! 🐥` }]);
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handler = () => setOpenDropdown(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
+  // 아코디언 토글 + AI 분석 호출
+  const toggleCard = async (id, item) => {
+    const isOpen = openCards[id];
+    setOpenCards(prev => ({ ...prev, [id]: !isOpen }));
+
+    if (!isOpen && !analysisCache[id]) {
+      setAnalysisLoading(prev => ({ ...prev, [id]: true }));
+      try {
+        const { data, error } = await supabase.functions.invoke('note-analysis', {
+          body: {
+            templateCode: item.templateCode || '',
+            userCode: item.user_code || '',
+            correctAnswer: item.correctAnswer || '',
+            title: item.title || '',
+            description: item.description || '',
+            unitLevel: item.unit_level || '기초',
+          }
+        });
+        if (error) throw error;
+        setAnalysisCache(prev => ({ ...prev, [id]: data }));
+      } catch (err) {
+        console.error('분석 실패:', err);
+        setAnalysisCache(prev => ({
+          ...prev,
+          [id]: {
+            annotatedAnswer: item.correctAnswer || '',
+            wrongReason: '분석을 불러오지 못했어요.',
+            hint: '🐤 병아리 선배가 잠시 자리를 비웠구... 조금 있다가 다시 열어봐 삐약!'
+          }
+        }));
+      } finally {
+        setAnalysisLoading(prev => ({ ...prev, [id]: false }));
+      }
+    }
+  };
+
+  // 빈칸 하이라이팅 + 내 답 주석 처리
+  const renderTemplateWithHighlight = (templateCode, userCode) => {
+    if (!templateCode) return null;
+    const lines = templateCode.replace(/\\n/g, '\n').split('\n');
+    return lines.map((line, i) => {
+      if (line.includes('________')) {
+        return (
+          <div key={i}>
+            <span style={{ background: 'rgba(255,80,80,0.2)', color: '#ff9999', padding: '0 4px', borderRadius: '3px' }}>
+              {line.replace('________', '________')}
+            </span>
+            {userCode && (
+              <div style={{ color: '#f0a500', fontStyle: 'italic' }}>
+                {'  // 🟡 내가 쓴 답: '}{userCode}
+              </div>
+            )}
+          </div>
+        );
+      }
+      return <div key={i}>{line}</div>;
+    });
+  };
+
+  // 필터링 + 정렬
+  const getFiltered = () => {
+    let list = [...wrongItems];
+    if (filterDifficulty !== 'all') list = list.filter(i => i.unit_level === filterDifficulty);
+    if (filterChapter !== 'all') list = list.filter(i => String(i.chapterNum) === String(filterChapter));
+    if (filterDate) {
+      const selected = new Date(filterDate).toDateString();
+      list = list.filter(i => new Date(i.created_at).toDateString() === selected);
+    }
+    if (filterWrongCount === 'desc') list.sort((a, b) => b.wrongCount - a.wrongCount);
+    else if (filterWrongCount === 'asc') list.sort((a, b) => a.wrongCount - b.wrongCount);
+    return list;
+  };
+
+  // 챕터 목록 추출
+  const chapters = [...new Set(wrongItems.map(i => i.chapterNum).filter(Boolean))].sort((a, b) => a - b);
+
+  const openAiModal = (item) => {
+    setAiModal(item);
+    setChatHistory([{ role: 'bot', text: `'${item.title}' 문제에 대해 궁금한 거 물어봐! 삐약! 🐥` }]);
     setChatInput('');
   };
 
@@ -47,155 +129,275 @@ export function Note({ t }) {
     setChatInput('');
     setChatHistory(prev => [...prev, { role: 'user', text }, { role: 'bot', text: '생각중이야 삐약... 🤔', thinking: true }]);
     try {
-      const res = await fetch(`${API_URL}/chat`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_question: text, user_code: aiModal.userCode || '', problem_context: aiModal.title || '' })
+      const { data, error } = await supabase.functions.invoke('claude-prescription', {
+        body: {
+          habitType: 'tab_switch',
+          stats: {},
+          displayName: text,
+        }
       });
-      const data = await res.json();
-      setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: data.answer }]);
+      setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: data?.prescription || '답변을 불러오지 못했어 삐약!' }]);
     } catch {
       setChatHistory(prev => [...prev.filter(m => !m.thinking), { role: 'bot', text: '서버와 연결되지 않아서 대답하기 어려워 삐약! 🐥' }]);
     }
   };
 
-  /*사용자가 선택한 기준에 따라 오답 리스트를 실시간으로 가공해서 보여주는 함수입니다. 챕터별로 필터링하거나, 최신순/오래된 순/많이 틀린 순으로 정렬하는 기능을 담당합니다.*/
-  const getFilteredAndSorted = () => {
-    let filtered = activeChapter === "all" ? wrongItems : wrongItems.filter(a => String(a.chapter) === String(activeChapter));
-    if (activeSort === "newest") filtered = [...filtered].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-    else if (activeSort === "oldest") filtered = [...filtered].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
-    else if (activeSort === "mostWrong") filtered = [...filtered].sort((a, b) => (wrongCountMap[b.problemId || b.title] || 0) - (wrongCountMap[a.problemId || a.title] || 0));
-    return filtered;
-  };
+  const displayedList = getFiltered();
 
-  /*문제의 유형과 챕터의 성격에 따라 맞춤형 조언을 제공하여 스스로 생각하게 만듭니다*/
-  const getWhyWrong = (attempt) => {
-    if (attempt.type === 'ox') return "O/X 문제는 개념을 정확히 이해해야 해! 관련 내용을 다시 읽어보고 왜 그 답인지 이유를 말해볼 수 있어?";
-    if (attempt.type === 'multiple') return "객관식은 오답 선택지가 왜 틀렸는지도 분석해봐! 헷갈린 선택지를 다시 비교해봐.";
-    if (attempt.type === 'coding') return "코드 작성 문제야. 키워드가 빠지진 않았는지, 문법 오류는 없는지 한 줄씩 확인해봐!";
-    return "틀린 부분을 다시 한 번 점검해봐!";
-  };
-  const getTip = (attempt) => {
-    const ch = attempt.chapter;
-    const type = attempt.type;
-    const keywords = (attempt.keywords || []).join(", ");
-    if (ch === 1 && type === 'coding') return `💡 변수 선언 순서: 타입 → 변수명 → = → 값 → ; 순서로 기억해봐! 키워드: ${keywords}`;
-    if (ch === 1) return `💡 자료형마다 저장할 수 있는 값이 달라! int는 정수, double은 실수, String은 문자열이야.`;
-    if (ch === 2 && type === 'coding') return `💡 System.out.println()은 줄바꿈 포함, print()는 줄바꿈 없어! 키워드: ${keywords}`;
-    if (ch === 2) return `💡 출력 메서드의 차이를 헷갈리지 마! print, println, printf 각각 언제 쓰는지 정리해봐.`;
-    if (ch === 3 && type === 'coding') return `💡 조건문은 조건식이 true일 때 실행돼. 중괄호 {} 범위도 꼭 확인해봐! 키워드: ${keywords}`;
-    if (ch === 3) return `💡 if-else if-else 흐름을 순서대로 따라가봐. 조건이 겹치진 않는지 확인해!`;
-    if (ch === 4 && type === 'coding') return `💡 반복문은 초기식→조건식→실행→증감 순서야! 무한루프 조심하고 키워드: ${keywords}`;
-    if (ch === 4) return `💡 break는 반복 종료, continue는 건너뛰기야. 헷갈리면 직접 손으로 흐름을 그려봐!`;
-    return `💡 키워드(${keywords || "-"})가 왜 필요한지부터 확인해봐!`;
-  };
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f0e8', color: '#5d4037' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2.5rem' }}>⏳</div>
+          <p style={{ marginTop: '16px', fontWeight: 'bold' }}>오답 데이터 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const formatType = (type) => type === 'multiple' ? '객관식' : type === 'coding' ? '실습 코딩' : type === 'ox' ? 'O/X 퀴즈' : '미분류';
-  const displayedList = getFilteredAndSorted();
+  const dropdownStyle = {
+    position: 'absolute', top: '110%', left: 0, zIndex: 100,
+    background: 'white', border: '1px solid #e0d6c8', borderRadius: '10px',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: '140px', padding: '6px 0'
+  };
+  const dropdownItemStyle = {
+    padding: '8px 16px', fontSize: '13px', color: '#3e2723', cursor: 'pointer',
+    transition: 'background 0.15s'
+  };
+  const filterBtnStyle = (active) => ({
+    padding: '6px 14px', borderRadius: '20px', border: '1px solid #d7ccc8',
+    background: active ? '#5d4037' : 'white', color: active ? 'white' : '#5d4037',
+    fontSize: '13px', fontWeight: '500', cursor: 'pointer', position: 'relative'
+  });
 
   return (
-    <div className="note-container" style={{ paddingTop: '0px', position: 'relative', width: '100vw', minHeight: '100vh' }}>
-      <main className="note-book">
-        <div className="note-toolbar">
-          <button type="button" className="note-back-btn" onClick={() => navigate(-1)}>
-            ❮ 뒤로가기
-          </button>
-          <div className="book-title-tag">CHICKODE: 오답노트</div>
-        </div>
-        <div className="book-content">
-          <aside className="chapter-sidebar" style={{ minWidth: '160px', paddingLeft: '16px' }}>
-            <div className="sidebar-section-title">정렬</div>
-            <div className="sort-btn-group">
-              <button className={`sort-btn ${activeSort === 'newest' ? 'active' : ''}`} onClick={() => setActiveSort('newest')}>최신순</button>
-              <button className={`sort-btn ${activeSort === 'oldest' ? 'active' : ''}`} onClick={() => setActiveSort('oldest')}>오래된 순</button>
-              <button className={`sort-btn ${activeSort === 'mostWrong' ? 'active' : ''}`} onClick={() => setActiveSort('mostWrong')}>많이 틀린 순</button>
-            </div>
-            <div className="sidebar-divider"></div>
-            <div className="sidebar-section-title">챕터</div>
-            <div id="chapterSidebar">
-              <button className={`chapter-btn ${activeChapter === 'all' ? 'active' : ''}`} onClick={() => setActiveChapter('all')}>전체 ({wrongItems.length})</button>
-              {Object.keys(chapterCounts).sort((a, b) => parseInt(a) - parseInt(b)).map(ch => (
-                <button key={ch} className={`chapter-btn ${activeChapter === ch ? 'active' : ''}`} onClick={() => setActiveChapter(ch)}>
-                  챕터 {ch} ({chapterCounts[ch]})
-                </button>
-              ))}
-            </div>
-          </aside>
+    <div style={{ background: '#f5f0e8', minHeight: '100vh', width: '100vw', boxSizing: 'border-box', fontFamily: 'sans-serif' }}>
 
-          <section className="wrong-answer-area">
-            <h3 className="area-title">오답 모음</h3>
-            {displayedList.length === 0 && (
-              <div className="tip-box">아직 오답이 없어! 메인에서 문제를 풀고 틀리면 여기에 자동으로 저장돼.</div>
+      {/* 상단 네비 */}
+      <div style={{ background: '#3e2723', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <button type="button" onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold' }}>
+          ❮ 뒤로가기
+        </button>
+        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>CHICKODE: 오답노트</span>
+      </div>
+
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
+
+        {/* 필터 바 */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+
+          {/* 난이도 */}
+          <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button style={filterBtnStyle(filterDifficulty !== 'all')} onClick={() => setOpenDropdown(openDropdown === 'diff' ? null : 'diff')}>
+              난이도 {filterDifficulty !== 'all' ? `· ${filterDifficulty}` : ''} ▾
+            </button>
+            {openDropdown === 'diff' && (
+              <div style={dropdownStyle}>
+                {['all', '기초', '중급', '고급'].map(v => (
+                  <div key={v} style={{ ...dropdownItemStyle, fontWeight: filterDifficulty === v ? 'bold' : 'normal' }}
+                    onClick={() => { setFilterDifficulty(v); setOpenDropdown(null); }}>
+                    {v === 'all' ? '전체' : v}
+                  </div>
+                ))}
+              </div>
             )}
-            <div className="wrong-item-container">
-              {displayedList.map(a => (
-                <div key={a.id} className="wrong-card">
-                  <div className="card-info">
-                    <div className="info-box" style={{ fontSize: '0.72rem' }}>챕터<strong>{a.chapter ?? "-"}</strong></div>
-                    <div className="info-box" style={{ fontSize: '0.72rem' }}>유형<strong>{formatType(a.type)}</strong></div>
-                    <div className="info-box" style={{ fontSize: '0.72rem' }}>난이도<strong>{a.difficulty || "기본"}</strong></div>
-                    <div className="info-box" style={{ color: '#d32f2f', fontSize: '0.72rem' }}>틀린 횟수<strong>{wrongCountMap[a.problemId || a.title] || 1}회</strong></div>
-                    <div className="info-box" style={{ fontSize: '0.72rem' }}>일시<strong style={{ fontSize: '0.68rem' }}>{new Date(a.createdAt ?? Date.now()).toLocaleString()}</strong></div>
+          </div>
+
+          {/* 챕터 */}
+          <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button style={filterBtnStyle(filterChapter !== 'all')} onClick={() => setOpenDropdown(openDropdown === 'ch' ? null : 'ch')}>
+              챕터 {filterChapter !== 'all' ? `· Ch.${filterChapter}` : ''} ▾
+            </button>
+            {openDropdown === 'ch' && (
+              <div style={dropdownStyle}>
+                <div style={{ ...dropdownItemStyle, fontWeight: filterChapter === 'all' ? 'bold' : 'normal' }}
+                  onClick={() => { setFilterChapter('all'); setOpenDropdown(null); }}>전체</div>
+                {chapters.map(ch => (
+                  <div key={ch} style={{ ...dropdownItemStyle, fontWeight: String(filterChapter) === String(ch) ? 'bold' : 'normal' }}
+                    onClick={() => { setFilterChapter(ch); setOpenDropdown(null); }}>
+                    Ch.{ch}
                   </div>
-                  <div style={{ marginBottom: '6px', fontWeight: 'bold', fontSize: '0.85rem', color: '#3e2723', padding: '4px 0', borderBottom: '1px dashed #c8b89a' }}>
-                    {a.title ?? "문제"}
-                  </div>
-                  {a.type === 'multiple' || a.type === 'ox' ? (
-                    <div className="answer-compare">
-                      <div className="answer-box my-answer"><span className="box-label">내가 쓴 답</span>{a.userCode || "미제출"}</div>
-                      <div className="answer-box correct-answer"><span className="box-label">정답</span>{a.expectedExample || "-"}</div>
-                    </div>
-                  ) : (
-                    <div className="code-compare">
-                      <div className="code-box" style={{ minHeight: '120px', height: 'auto', overflow: 'visible', maxHeight: 'none' }}>
-                        <span className="box-label">내가 쓴 답</span>
-                        <pre style={{ overflow: 'visible', maxHeight: 'none', margin: 0 }}><code>{a.userCode || "(없음)"}</code></pre>
-                      </div>
-                      <div className="code-box" style={{ minHeight: '120px', height: 'auto', overflow: 'visible', maxHeight: 'none' }}>
-                        <span className="box-label">정답</span>
-                        <pre style={{ overflow: 'visible', maxHeight: 'none', margin: 0 }}><code>{a.expectedExample || "(없음)"}</code></pre>
-                      </div>
-                    </div>
-                  )}
-                  <div className="why-wrong-box"><span className="box-label">왜 틀렸을까?</span>{getWhyWrong(a)}</div>
-                  <div className="tip-box">{getTip(a)}</div>
-                  <div className="action-btn-group">
-                    <button className="action-btn retry-btn" onClick={() => navigate('/play', { state: { singleProblemId: a.problemId || a.title } })}>다시 풀기</button>
-                    <button className="action-btn ai-btn" onClick={() => openAiModal(a)}>AI에게 질문</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 틀린 횟수 */}
+          <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button style={filterBtnStyle(false)} onClick={() => setOpenDropdown(openDropdown === 'wc' ? null : 'wc')}>
+              틀린 횟수 ▾
+            </button>
+            {openDropdown === 'wc' && (
+              <div style={dropdownStyle}>
+                <div style={{ ...dropdownItemStyle, fontWeight: filterWrongCount === 'desc' ? 'bold' : 'normal' }}
+                  onClick={() => { setFilterWrongCount('desc'); setOpenDropdown(null); }}>많은 순</div>
+                <div style={{ ...dropdownItemStyle, fontWeight: filterWrongCount === 'asc' ? 'bold' : 'normal' }}
+                  onClick={() => { setFilterWrongCount('asc'); setOpenDropdown(null); }}>적은 순</div>
+              </div>
+            )}
+          </div>
+
+          {/* 일시 */}
+          <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button style={filterBtnStyle(!!filterDate)} onClick={() => setOpenDropdown(openDropdown === 'date' ? null : 'date')}>
+              일시 {filterDate ? `· ${filterDate}` : ''} ▾
+            </button>
+            {openDropdown === 'date' && (
+              <div style={{ ...dropdownStyle, padding: '10px' }}>
+                <input type="date" value={filterDate || ''} onChange={e => { setFilterDate(e.target.value); setOpenDropdown(null); }}
+                  style={{ border: '1px solid #d7ccc8', borderRadius: '6px', padding: '4px 8px', fontSize: '13px' }} />
+                {filterDate && (
+                  <div style={{ ...dropdownItemStyle, color: '#ef5350', marginTop: '4px' }}
+                    onClick={() => { setFilterDate(null); setOpenDropdown(null); }}>초기화</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 전체 오답 수 */}
+          <div style={{ marginLeft: 'auto', fontSize: '13px', color: '#8d6e63', display: 'flex', alignItems: 'center' }}>
+            총 {displayedList.length}개
+          </div>
         </div>
-      </main>
+
+        {/* 오답 없을 때 */}
+        {displayedList.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#8d6e63' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🐥</div>
+            <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>오답이 없어!</p>
+            <p style={{ marginTop: '8px', fontSize: '0.9rem' }}>문제를 풀면 여기에 자동으로 저장돼.</p>
+          </div>
+        )}
+
+        {/* 아코디언 카드 목록 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {displayedList.map((item, idx) => {
+            const cardId = item.id || idx;
+            const isOpen = !!openCards[cardId];
+            const analysis = analysisCache[cardId];
+            const isAnalysisLoading = !!analysisLoading[cardId];
+            const isHintOpen = !!openHints[cardId];
+
+            return (
+              <div key={cardId} style={{ background: 'white', borderRadius: '16px', border: '1px solid #e0d6c8', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+
+                {/* 아코디언 헤더 */}
+                <div onClick={() => toggleCard(cardId, item)}
+                  style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '0.95rem', color: '#3e2723', marginBottom: '6px' }}>
+                      {item.title}
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {item.chapterNum && (
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#efebe9', color: '#5d4037' }}>Ch.{item.chapterNum}</span>
+                      )}
+                      {item.unit_level && (
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#e8f5e9', color: '#2e7d32' }}>{item.unit_level}</span>
+                      )}
+                      <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#ffebee', color: '#c62828', fontWeight: 'bold' }}>
+                        틀린 횟수 {item.wrongCount}회
+                      </span>
+                      <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#f5f0e8', color: '#8d6e63' }}>
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '18px', color: '#8d6e63', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                </div>
+
+                {/* 아코디언 바디 */}
+                {isOpen && (
+                  <div style={{ borderTop: '1px solid #f5f0e8', padding: '18px' }}>
+
+                    {isAnalysisLoading ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: '#8d6e63', fontSize: '0.9rem' }}>
+                        🐣 병아리 선배가 분석하고 있구... 📝
+                      </div>
+                    ) : (
+                      <>
+                        {/* 내가 쓴 답 */}
+                        <div style={{ marginBottom: '16px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#8d6e63', marginBottom: '8px' }}>내가 쓴 답</div>
+                          <div style={{ background: '#1e1e1e', borderRadius: '10px', padding: '14px', fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.8', overflowX: 'auto' }}>
+                            {renderTemplateWithHighlight(item.templateCode, item.user_code)}
+                          </div>
+                        </div>
+
+                        {/* 정답 코드 (주석 포함) */}
+                        <div style={{ marginBottom: '16px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#8d6e63', marginBottom: '8px' }}>정답 코드</div>
+                          <div style={{ background: '#1e1e1e', borderRadius: '10px', padding: '14px', fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.8', overflowX: 'auto' }}>
+                            {(analysis?.annotatedAnswer || item.correctAnswer || '').split('\n').map((line, i) => (
+                              <div key={i} style={{ color: line.trim().startsWith('//') ? '#6a9955' : '#d4d4d4' }}>{line}</div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 틀린 이유 */}
+                        <div style={{ marginBottom: '12px', padding: '12px', background: '#fff5f5', borderLeft: '4px solid #ef5350', borderRadius: '0 8px 8px 0', fontSize: '13px', color: '#c62828', lineHeight: '1.6' }}>
+                          <strong>왜 틀렸을까?</strong><br />
+                          {analysis?.wrongReason || '분석 중...'}
+                        </div>
+
+                        {/* 병아리 쪽지 아코디언 */}
+                        <div style={{ marginBottom: '16px', border: '1px dashed #ffa726', borderRadius: '10px', overflow: 'hidden' }}>
+                          <div onClick={() => setOpenHints(prev => ({ ...prev, [cardId]: !isHintOpen }))}
+                            style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff8e1' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#e65100' }}>🐣 병아리 선배의 비밀 쪽지</span>
+                            <span style={{ fontSize: '14px', color: '#e65100', transition: 'transform 0.2s', transform: isHintOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                          </div>
+                          {isHintOpen && (
+                            <div style={{ padding: '12px 14px', background: 'white', fontSize: '13px', color: '#5d4037', lineHeight: '1.7' }}
+                              dangerouslySetInnerHTML={{ __html: analysis?.hint || '힌트를 불러오지 못했어 삐약!' }} />
+                          )}
+                        </div>
+
+                        {/* 액션 버튼 */}
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button onClick={() => navigate('/play', { state: { chapter: item.chapterNum, count: 5, ratio: 50, difficulty: item.unit_level || '기초' } })}
+                            style={{ padding: '8px 16px', borderRadius: '8px', background: '#ff8f00', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            다시 풀기
+                          </button>
+                          <button onClick={() => openAiModal(item)}
+                            style={{ padding: '8px 16px', borderRadius: '8px', background: '#5d4037', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            AI에게 질문
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* AI 질문 모달 */}
       {aiModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={(e) => { if (e.target === e.currentTarget) setAiModal(null); }}>
-          <div className="modal-content" style={{ width: 'min(480px, 90vw)', display: 'flex', flexDirection: 'column', maxHeight: 'min(70vh, 600px)' }}>
-            <button className="close-btn" onClick={() => setAiModal(null)}>&times;</button>
-            <h2 className="modal-header">🐥 AI에게 질문</h2>
-            <p style={{ fontSize: '0.85rem', color: '#aaa', marginBottom: '12px' }}>{aiModal.title}</p>
-            <div ref={chatDisplayRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) setAiModal(null); }}>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '20px', width: 'min(480px, 90vw)', display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <strong style={{ fontSize: '1rem', color: '#3e2723' }}>🐥 AI에게 질문</strong>
+              <button onClick={() => setAiModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#8d6e63' }}>×</button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: '#8d6e63', marginBottom: '12px' }}>{aiModal.title}</p>
+            <div ref={chatDisplayRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', padding: '8px', background: '#f5f0e8', borderRadius: '8px' }}>
               {chatHistory.map((m, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: m.role === 'bot' ? 'flex-start' : 'flex-end' }}>
-                  <div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: '12px', background: m.role === 'bot' ? 'rgba(255,255,255,0.15)' : '#f9a825', color: 'white', fontSize: '0.9rem' }}>
+                  <div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: '12px', background: m.role === 'bot' ? 'white' : '#5d4037', color: m.role === 'bot' ? '#3e2723' : 'white', fontSize: '0.88rem' }}>
                     {m.text}
                   </div>
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                className="setting-input"
-                placeholder="병아리 선배에게 질문하기..."
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-                style={{ flex: 1 }}
-              />
-              <button className="clay-submit" onClick={handleSendChat} style={{ padding: '8px 16px' }}>전송</button>
+              <input type="text" placeholder="병아리 선배에게 질문하기..." value={chatInput}
+                onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+                style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #d7ccc8', fontSize: '13px' }} />
+              <button onClick={handleSendChat} style={{ padding: '8px 16px', borderRadius: '8px', background: '#5d4037', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>전송</button>
             </div>
           </div>
         </div>
