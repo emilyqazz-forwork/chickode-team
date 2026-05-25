@@ -320,59 +320,176 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
         <div className="top-control-layer">
           <div className="top-right-controls" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
 
-            {/* 내부 특수 효과 스타일시트 삽입 (LP판 스핀 애니메이션 및 마우스 호버 효과 정밀 정의) */}
+            {/* 내부 특수 효과 스타일시트 삽입 (LP판 스핀 애니메이션 및 마우스 호버 효과 정밀 정의 + 반응형 처리) */}
             <style>{`
               @keyframes spin {
                 from { transform: rotate(0deg); }
                 to { transform: rotate(360deg); }
               }
-              .home-top-actions { display: flex; justify-content: flex-end; }
-              .home-settings-wrap { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 8px; row-gap: 2px; align-items: center; }
-              .home-settings-btn { grid-column: 1; grid-row: 1; align-self: center; }
-              .home-login-action { grid-column: 2; grid-row: 1; align-self: center; flex-shrink: 0; }
-              .home-settings-label { grid-column: 1; grid-row: 2; justify-self: center; margin-top: -2px; }
-              .home-settings-btn { display: block; background: none !important; border: none !important; box-shadow: none !important; width: auto !important; height: auto !important; padding: 0 !important; line-height: 0; cursor: pointer; }
+
+              /* ── 최상위 우측 컨트롤 래퍼: 화면 너비의 38% 이상은 차지 못하게 제한 ── */
+              .top-right-controls {
+                max-width: min(340px, 38vw);
+              }
+
+              /* ── 설정 + 프로필 가로 행 ── */
+              .home-top-actions { display: flex; justify-content: flex-end; width: 100%; }
+
+              /* grid → flex로 전환, 설정버튼(이미지+라벨 묶음)과 프로필 바를 가로 배치 */
+              .home-settings-wrap {
+                display: flex;
+                flex-direction: row;
+                align-items: flex-end;
+                gap: clamp(4px, 1vw, 12px); /* 화면 크기에 따라 간격 자동 조정 */
+              }
+
+              /* ── 설정 버튼 + 라벨을 세로로 묶는 래퍼 ── */
+              .home-settings-btn-wrap {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                flex-shrink: 0;
+              }
+
+              /* ── 설정 버튼: display block으로 클릭 영역을 이미지 크기로만 제한 ── */
+              /* 라벨은 버튼 밖 별도 <span>으로 분리되어 있어 프로필 바와 클릭 영역 겹침 없음 */
+              .home-settings-btn {
+                display: block !important;
+                background: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                width: auto !important;
+                height: auto !important;
+                padding: 0 !important;
+                line-height: 0;
+                cursor: pointer;
+              }
               .home-settings-btn:hover, .home-settings-btn:active { transform: none !important; }
-              .home-settings-label { font-family: 'Jua', sans-serif; font-size: 15px; font-weight: 700; color: #3e2723; text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8); pointer-events: none; white-space: nowrap; line-height: 1; margin: 0; }
-              .home-settings-wrap:hover .home-settings-label { text-shadow: 0 0 8px rgba(255, 220, 100, 0.95), 0 0 16px rgba(255, 193, 7, 0.5), 0 1px 0 rgba(255, 248, 216, 0.8); }
-              .home-settings-wrap:active .home-settings-label { text-shadow: 0 0 10px rgba(255, 235, 140, 1), 0 0 20px rgba(255, 200, 60, 0.85), 0 1px 0 rgba(255, 248, 216, 0.8); }
-              .home-settings-img { width: 96px; height: auto; max-height: 96px; object-fit: contain; object-position: center bottom; mix-blend-mode: multiply; transition: transform 0.25s ease, filter 0.25s ease; display: block; margin: 18px 0 -2px 0; vertical-align: bottom; }
+
+              /* 설정 이미지: 96px 기준, 화면이 좁아지면 clamp로 자동 축소 */
+              .home-settings-img {
+                width: clamp(52px, 8vw, 96px);
+                height: auto;
+                max-height: 96px;
+                object-fit: contain;
+                object-position: center bottom;
+                mix-blend-mode: multiply;
+                transition: transform 0.25s ease, filter 0.25s ease;
+                display: block;
+                margin: 18px 0 -2px 0;
+                vertical-align: bottom;
+              }
               .home-settings-wrap:hover .home-settings-img { filter: drop-shadow(0 0 6px rgba(255, 235, 130, 1)) drop-shadow(0 0 14px rgba(255, 210, 70, 0.9)) drop-shadow(0 0 26px rgba(255, 193, 7, 0.55)); }
               .home-settings-wrap:active .home-settings-img { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(255, 245, 170, 1)) drop-shadow(0 0 18px rgba(255, 220, 90, 1)) drop-shadow(0 0 34px rgba(255, 193, 7, 0.8)); }
+
+              /* 설정 라벨: 화면 좁아지면 폰트 크기 자동 축소 */
+              .home-settings-label {
+                font-family: 'Jua', sans-serif;
+                font-size: clamp(11px, 1.2vw, 15px);
+                font-weight: 700;
+                color: #3e2723;
+                text-shadow: 0 1px 0 rgba(255, 248, 216, 0.8);
+                pointer-events: none;
+                white-space: nowrap;
+                line-height: 1;
+                margin-top: 2px;
+                display: block;
+                text-align: center;
+              }
+              .home-settings-wrap:hover .home-settings-label { text-shadow: 0 0 8px rgba(255, 220, 100, 0.95), 0 0 16px rgba(255, 193, 7, 0.5), 0 1px 0 rgba(255, 248, 216, 0.8); }
+              .home-settings-wrap:active .home-settings-label { text-shadow: 0 0 10px rgba(255, 235, 140, 1), 0 0 20px rgba(255, 200, 60, 0.85), 0 1px 0 rgba(255, 248, 216, 0.8); }
+
+              /* ── 프로필 바: 공간 부족 시 먼저 줄어드는 flex 설정 ── */
+              .home-login-action {
+                flex-shrink: 1;  /* 공간 부족 시 프로필 바가 먼저 줄어듦 */
+                min-width: 0;    /* flex-shrink가 실제로 동작하려면 필수 */
+              }
+
+              /* 프로필 바 내부 공통 row: 화면이 좁아지면 padding과 gap이 자동 축소 */
+              .home-profile-bar {
+                display: flex;
+                align-items: center;
+                gap: clamp(4px, 0.8vw, 8px);
+                cursor: pointer;
+                background: rgba(255,248,216,0.9);
+                border: 3px solid #5d4037;
+                border-radius: 40px;
+                padding: 6px clamp(8px, 1.5vw, 14px);
+                box-shadow: 0 4px 0 #3e2723;
+                min-width: 0;
+                max-width: clamp(100px, 18vw, 200px); /* 화면이 좁으면 바 자체 너비 제한 */
+              }
+
+              /* 닉네임 텍스트: 넘치면 말줄임표(...) 처리 */
+              .home-profile-name {
+                font-size: clamp(10px, 1.1vw, 13px);
+                font-weight: 900;
+                color: #5d4037;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              /* ── BGM LP판: 80px 기준, 좁아지면 최소 48px까지 축소 ── */
+              /* animation 속성은 여기 없음 - 인라인 style에서 animationPlayState와 함께 선언 */
+              .home-bgm-lp {
+                width: clamp(48px, 7vw, 80px) !important;
+                height: clamp(48px, 7vw, 80px) !important;
+                cursor: pointer;
+              }
+
+              /* BGM 트랙명 라벨: 화면 좁아지면 폰트 축소 */
+              .home-bgm-label {
+                font-size: clamp(9px, 1vw, 12px);
+                font-weight: 900;
+                color: #fff;
+                text-shadow: 0 1px 3px rgba(0,0,0,0.75);
+                white-space: nowrap;
+              }
+
+              /* ── 600px 이하 모바일 분기점 ── */
+              @media (max-width: 600px) {
+                .top-right-controls { max-width: 52vw; gap: 4px; }
+                .home-settings-wrap { gap: 4px; }
+                .home-profile-bar { max-width: 28vw; padding: 4px 8px; }
+              }
             `}</style>
 
             <div className="home-top-actions">
               <div className="home-settings-wrap">
-                {/* 톱니바퀴 대신 귀여운 병아리집 모양의 대형 환경설정 바로가기 아이콘 버튼 */}
-                <button
-                  ref={settingsBtnRef}
-                  id="globalSettingsBtn"
-                  className="settings-btn home-settings-btn"
-                  title={t('btn_setting')}
-                  onClick={onOpenSettings}
-                >
-                  <img src="/images/home_settings.png" alt="" className="home-settings-img" />
-                </button>
+
+                {/* 설정 버튼과 라벨을 별도 래퍼(.home-settings-btn-wrap)로 묶어 세로 배치 */}
+                {/* 버튼 클릭 영역이 이미지 크기로만 제한되어 프로필 바와 겹치지 않음 */}
+                <div className="home-settings-btn-wrap">
+                  {/* 톱니바퀴 대신 귀여운 병아리집 모양의 대형 환경설정 바로가기 아이콘 버튼 */}
+                  <button
+                    ref={settingsBtnRef}
+                    id="globalSettingsBtn"
+                    className="settings-btn home-settings-btn"
+                    title={t('btn_setting')}
+                    onClick={onOpenSettings}
+                  >
+                    <img src="/images/home_settings.png" alt="" className="home-settings-img" />
+                  </button>
+                  {/* 라벨은 버튼 밖 별도 <span>으로 분리 - 버튼 클릭 영역에 포함되지 않음 */}
+                  <span className="home-settings-label">{t('btn_setting')}</span>
+                </div>
 
                 {/* [조건부 렌더링 A : 유저가 로그인 상태일 때 - 마이프로필 영역 출력] */}
                 {user ? (
                   <div className="home-login-action" style={{ position: 'relative' }}>
-                    {/* 동그란 프로필 사진 및 유저 네임 바 */}
+                    {/* 동그란 프로필 사진 및 유저 네임 바 - 반응형 클래스 적용 */}
                     <div
+                      className="home-profile-bar"
                       onClick={() => setShowProfileMenu(!showProfileMenu)} // 클릭 시 하단 미니 회원메뉴 토글
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        cursor: 'pointer', background: 'rgba(255,248,216,0.9)',
-                        border: '3px solid #5d4037', borderRadius: 40,
-                        padding: '6px 14px', boxShadow: '0 4px 0 #3e2723',
-                      }}
                     >
                       <img
                         src={profile?.avatar_url || '/images/chick.png'} // 설정된 아바타 사진이 없으면 기본 대피용 병아리 이미지 출력
                         alt="프로필"
-                        style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid #5d4037' }}
+                        style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid #5d4037', flexShrink: 0 }}
                       />
-                      <span style={{ fontSize: 13, fontWeight: 900, color: '#5d4037' }}>
+                      {/* 닉네임이 길면 말줄임표로 잘려서 레이아웃 붕괴 방지 */}
+                      <span className="home-profile-name">
                         {profile?.username || user.email?.split('@')[0] || '삐약이'}
                       </span>
                     </div>
@@ -431,30 +548,28 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
                   <div
                     className="home-login-action"
                     onClick={onOpenAuth} // 로그인 입력 폼 모달 활성화 트리거 실행
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      cursor: 'pointer', background: 'rgba(255,248,216,0.9)',
-                      border: '3px solid #5d4037', borderRadius: 40,
-                      padding: '6px 14px', boxShadow: '0 4px 0 #3e2723',
-                    }}
                   >
-                    <img src="/images/chick.png" alt="게스트" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid #5d4037' }} />
-                    <span style={{ fontSize: 13, fontWeight: 900, color: '#5d4037' }}>{t('btn_login')}</span>
+                    {/* 게스트 프로필 바도 동일한 home-profile-bar 클래스로 반응형 통일 */}
+                    <div className="home-profile-bar">
+                      <img src="/images/chick.png" alt="게스트" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid #5d4037', flexShrink: 0 }} />
+                      <span className="home-profile-name">{t('btn_login')}</span>
+                    </div>
                   </div>
                 )}
 
-                <span className="home-settings-label">{t('btn_setting')}</span>
               </div>
             </div>
 
             {/* BGM 재생 상태 연동 회전 LP판 컨트롤 기믹 인터페이스 디스플레이 */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              {/* animation과 animationPlayState를 인라인 style로 함께 선언 */}
+              {/* CSS 클래스에 animation이 있으면 브라우저가 인라인 animationPlayState를 덮어써서 */}
+              {/* BGM을 꺼도 LP판이 계속 돌아가는 버그 발생 → 인라인에서 통합 관리 */}
               <img
                 id="homeBgmBtn"
                 src="/images/LP.png"
                 alt="BGM"
-                width={80}
-                height={80}
+                className="home-bgm-lp"
                 onClick={() => {
                   // 첫 클릭 시 음원 차단 락 해제를 유도하고 BGM을 강제 작동 세팅하는 가드
                   if (!userStartedRef.current) {
@@ -466,13 +581,12 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
                   updateParams({ ...safeParams, bgm: !safeParams.bgm });
                 }}
                 style={{
-                  width: 80, height: 80, cursor: 'pointer',
-                  animation: 'spin 2s linear infinite', // 일정한 속도로 무한 회전
-                  animationPlayState: safeParams.bgm ? 'running' : 'paused', // 음악이 나오면 돌고 꺼지면 멈춤 정지
+                  animation: 'spin 2s linear infinite',                       // 일정한 속도로 무한 회전
+                  animationPlayState: safeParams.bgm ? 'running' : 'paused',  // 음악이 나오면 돌고 꺼지면 멈춤 정지
                 }}
               />
               {/* 현재 재생하고 있는 사운드 트랙 앨범 태그 안내 명칭 출력 */}
-              <div style={{ fontSize: 12, fontWeight: 900, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.75)' }}>
+              <div className="home-bgm-label">
                 {`🎵 ${safeParams.bgmTrack === 'pixel' ? t('bgm_pixel') : t('bgm_cabin')}`}
               </div>
             </div>
