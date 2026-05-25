@@ -319,11 +319,42 @@ export function Home({ t, lang }) {
   };
 
   return (
-    <div className="main-container home-page" style={{ display: 'flex', backgroundImage: 'none', overflow: 'hidden' }}>
+    <div className="main-container home-page" style={{ display: 'flex', backgroundImage: 'none' }}>
       {/* 로비 대시보드 인터페이스 전용 CSS 마크다운 주입 */}
       <style>{`
-        .home-page .home-bg-layer { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; transition: opacity 2s ease-in-out; z-index: 0; pointer-events: none; }
-        .home-page .home-bg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.35); z-index: 1; pointer-events: none; }
+        .main-container.home-page {
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          height: calc(var(--home-vh, 1vh) * 100);
+          min-height: calc(var(--home-vh, 1vh) * 100);
+          max-height: calc(var(--home-vh, 1vh) * 100);
+          overflow: hidden;
+          overscroll-behavior: none;
+        }
+        .home-page .home-bg-layer {
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          height: calc(var(--home-vh, 1vh) * 100);
+          min-height: calc(var(--home-vh, 1vh) * 100);
+          background-size: cover;
+          background-position: center center;
+          background-repeat: no-repeat;
+          transition: opacity 2s ease-in-out;
+          z-index: 0;
+          pointer-events: none;
+        }
+        .home-page .home-bg-overlay {
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          height: calc(var(--home-vh, 1vh) * 100);
+          min-height: calc(var(--home-vh, 1vh) * 100);
+          background: rgba(0, 0, 0, 0.35);
+          z-index: 1;
+          pointer-events: none;
+        }
         .home-page > :not(.home-bg-layer):not(.home-bg-overlay):not(.modal-overlay) { position: relative; z-index: 2; }
         .home-page > .modal-overlay { z-index: 100; }
         .home-page .btn-link img { mix-blend-mode: multiply; transition: transform 0.25s ease, filter 0.25s ease; filter: drop-shadow(0 0 2px rgba(255,255,255,1)) drop-shadow(0 0 10px rgba(255,255,255,0.75)) drop-shadow(0 3px 12px rgba(0,0,0,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.8)); }

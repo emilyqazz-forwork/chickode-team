@@ -30,6 +30,41 @@ function AppRoutes() {
     return () => window.removeEventListener('chickode:start_tutorial', handleTutorialReplay);
   }, [navigate]);
 
+  // 뷰포트 높이 변화(주소창·리사이즈)에 맞춰 --home-vh 동기화 (전체 페이지)
+  useEffect(() => {
+    const setHomeVh = () => {
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--home-vh', `${h * 0.01}px`);
+    };
+    setHomeVh();
+    window.addEventListener('resize', setHomeVh);
+    window.visualViewport?.addEventListener('resize', setHomeVh);
+    window.visualViewport?.addEventListener('scroll', setHomeVh);
+    return () => {
+      window.removeEventListener('resize', setHomeVh);
+      window.visualViewport?.removeEventListener('resize', setHomeVh);
+      window.visualViewport?.removeEventListener('scroll', setHomeVh);
+      document.documentElement.style.removeProperty('--home-vh');
+    };
+  }, []);
+
+  // body 스크롤·오버스크롤 차단 (전체 페이지)
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevOverscroll = body.style.overscrollBehavior;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.overscrollBehavior = 'none';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, []);
+
   return (
     <>
       <GlobalNav
