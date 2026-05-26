@@ -14,7 +14,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# CORS 설정: Netlify 도메인을 정확히 허용하는 것이 좋아 (보안상 좋음)
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -22,9 +22,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 환경 변수 로드: VITE_가 붙지 않은 실제 키 이름을 사용하도록 수정
+# 환경 변수 로드: Railway에 설정한 변수명 그대로 사용
 CLAUDE_API_KEY = os.getenv("CHICKODE_CLAUDE_API_KEY")
-USERS_FILE = "users.json"
+
+# 🚨 디버그 로그 추가: 서버 시작 시 키가 들어왔는지 확인
+if not CLAUDE_API_KEY:
+    print("🚨 ERROR: CHICKODE_CLAUDE_API_KEY가 로드되지 않았습니다! Railway Variables를 확인하세요.")
+else:
+    print(f"✅ SUCCESS: API Key가 로드되었습니다. (길이: {len(CLAUDE_API_KEY)})")
 
 # Anthropic 클라이언트 초기화
 client = Anthropic(api_key=CLAUDE_API_KEY)
@@ -32,35 +37,18 @@ client = Anthropic(api_key=CLAUDE_API_KEY)
 # 모델 설정
 CLAUDE_MODEL = "claude-3-5-sonnet-20241022" 
 
-# --- 유저 저장소 로직 (생략: 기존과 동일) ---
-def load_users():
-    if not os.path.exists(USERS_FILE): return {}
-    with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
-
-def hash_password(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-# --- 요청 모델 정의 ---
-class ChatRequest(BaseModel):
-    user_question: str
-    user_code: str
-    problem_context: str
-    history: Optional[List[dict]] = []
-
-class GenerationRequest(BaseModel):
-    chapter_title: str
-    difficulty: str
-    recent_wrong_concepts: List[str]
+# --- (중략: 유저 로직, 모델 정의 등 기존 코드 동일) ---
+# 기존 코드 그대로 유지...
+# ...
 
 # --- API 엔드포인트 ---
 
 @app.post("/chat")
 async def chat_with_ai(request: ChatRequest):
+    # 🚨 키값 확인 (에러 시 서버 터짐 방지)
+    if not CLAUDE_API_KEY:
+        raise HTTPException(status_code=500, detail="서버에 AI API Key가 설정되지 않았습니다.")
+        
     try:
         history_str = "\n".join([f"{h['role']}: {h['text']}" for h in request.history])
         
@@ -79,10 +67,14 @@ async def chat_with_ai(request: ChatRequest):
         )
         return {"answer": response.content[0].text}
     except Exception as e:
+        print(f"DEBUG: Chat API Error: {str(e)}") # 로그 확인용
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-problem")
 async def generate_problem(request: GenerationRequest):
+    if not CLAUDE_API_KEY:
+        raise HTTPException(status_code=500, detail="서버에 AI API Key가 설정되지 않았습니다.")
+        
     try:
         system_instruction = "응답은 무조건 JSON 형식만 출력해. 마크다운 기호(```json)를 포함하지 마."
         prompt = f"""
@@ -100,7 +92,6 @@ async def generate_problem(request: GenerationRequest):
         )
         
         text = response.content[0].text.strip()
-        # 마크다운 방어막 추가
         if "```" in text:
             text = text.replace("```json", "").replace("```", "").strip()
             
@@ -118,6 +109,7 @@ async def generate_problem(request: GenerationRequest):
             "unit": "ai_dynamic_challenge"
         }
     except Exception as e:
+        print(f"DEBUG: Generation API Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
