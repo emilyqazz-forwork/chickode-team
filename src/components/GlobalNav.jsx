@@ -301,7 +301,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
         {/* 서비스 기능별 각 페이지 이동 경로 가이드 링크 모음 리스트 */}
         <ul className="nav-links">
           <li><Link to="/" onClick={() => setMenuOpen(false)}>{t('nav_home')}</Link></li>
-          <li><Link to="/quiz" onClick={() => setMenuOpen(false)}>{t('btn_quiz')}</Link></li>
+          <li><Link to="/" onClick={() => {setMenuOpen(false);setTimeout(() => {window.dispatchEvent(new Event('chickode:open_quiz_modal'));}, 100);}}>{t('btn_quiz')}</Link></li>
           <li><Link to="/note" onClick={() => setMenuOpen(false)}>{t('nav_note')}</Link></li>
           <li><Link to="/pattern" onClick={() => setMenuOpen(false)}>{t('nav_pattern') || "패턴분석"}</Link></li>
           <li><Link to="/minigame" onClick={() => setMenuOpen(false)}>{t('nav_minigame')}</Link></li>
