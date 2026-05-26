@@ -167,7 +167,7 @@ export function StatSection({ stats }) {
 
   return (
     <div style={{ background: 'white', borderRadius: '20px', padding: '20px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span>📈</span> 초보자 친화적 역량 성취 지표
       </h2>
 

@@ -112,7 +112,7 @@ export function Pattern({ t }) {
         <div style={{ width: '100%', maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
           
           <div style={{ textAlign: 'center' }}>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 'bold', margin: '0 0 6px 0' }}>📊 AI 기술 지표 정밀 진단 시스템</h1>
+            <h1 style={{ fontSize: '2rem', fontWeight: '800', margin: '0 0 6px 0' }}>📊 AI 기술 지표 정밀 진단 시스템</h1>
             <p style={{ color: '#8d6e63', margin: 0, fontSize: '0.9rem' }}>내 학습 데이터를 분석해 만든 맞춤 리포트예요</p>
           </div>
 
@@ -120,7 +120,7 @@ export function Pattern({ t }) {
 
           {/* SECTION 3: CCTV 로그 기반 3대 나쁜 습관 탐지 정밀 진단 */}
           <div style={{ background: 'white', borderRadius: '20px', padding: '28px 24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>🚨</span> 학습 습관 분석
             </h2>
             <p style={{ fontSize: '0.8rem', color: '#8d6e63', margin: '0 0 20px 0' }}>CHICK CAM이 감지한 집중력 방해 패턴이에요</p>
@@ -129,7 +129,7 @@ export function Pattern({ t }) {
               
               <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid #ffcdd2', background: hasTabHabit ? '#fff8f8' : '#fafafa', opacity: hasTabHabit ? 1 : 0.55, transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: hasTabHabit ? '#c62828' : '#3e2723' }}>
+                  <span style={{ fontWeight: '800', fontSize: '1.2rem', color: hasTabHabit ? '#c62828' : '#3e2723' }}>
                     🏃 습관 ① : 탭 자주 이탈해요
                   </span>
                   <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', background: hasTabHabit ? '#ef5350' : '#66bb6a', color: 'white' }}>
@@ -153,7 +153,7 @@ export function Pattern({ t }) {
 
               <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid #ffe082', background: hasTypingHabit ? '#fffbf0' : '#fafafa', opacity: hasTypingHabit ? 1 : 0.55, transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: hasTypingHabit ? '#b76e00' : '#3e2723' }}>
+                  <span style={{ fontWeight: '800', fontSize: '1.2rem', color: hasTypingHabit ? '#b76e00' : '#3e2723' }}>
                     🏎️ 습관 ② : 너무 빨리 제출해요
                   </span>
                   <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', background: hasTypingHabit ? '#ffa726' : '#66bb6a', color: 'white' }}>
@@ -177,7 +177,7 @@ export function Pattern({ t }) {
 
               <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid #ffcdd2', background: hasMouseHabit ? '#fff8f8' : '#fafafa', opacity: hasMouseHabit ? 1 : 0.55, transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: hasMouseHabit ? '#c62828' : '#3e2723' }}>
+                  <span style={{ fontWeight: '800', fontSize: '1.2rem', color: hasMouseHabit ? '#c62828' : '#3e2723' }}>
                     📱 습관 ③ : 마우스가 자꾸 나가요
                   </span>
                   <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', background: hasMouseHabit ? '#ef5350' : '#66bb6a', color: 'white' }}>
@@ -204,7 +204,7 @@ export function Pattern({ t }) {
 
           {/* SECTION 4: 동적 세션 완수도 이정표 카드 가동 → 취약 언어 + 챕터 AI 분석으로 교체 */}
           <div style={{ background: '#efebe9', borderRadius: '16px', padding: '28px 24px', border: '1px solid #d7ccc8', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', fontWeight: 'bold' }}>🎯 취약 언어 · 챕터 정밀 분석</h3>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem', fontWeight: '800' }}>🎯 취약 언어 · 챕터 정밀 분석</h3>
             <p style={{ fontSize: '0.8rem', color: '#8d6e63', margin: '0 0 16px 0' }}>오답 패턴과 학습 습관을 연결한 병아리 선배의 진단이에요</p>
 
             {wrongAttempts.length === 0 ? (
@@ -226,7 +226,7 @@ export function Pattern({ t }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <p style={{ margin: '0 0 4px 0', fontSize: '0.82rem', color: '#5d4037' }}>가장 취약한 챕터</p>
-                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '0.95rem', color: '#c62828' }}>
+                    <p style={{ margin: 0, fontWeight: '800', fontSize: '1.1rem', color: '#c62828' }}>
                       {LANG_LABEL[weakestLangKey]} · {LEVEL_LABEL[weakestLevel]} · Ch.{chapterNum}{chapterTitle ? ` · ${chapterTitle}` : ''}
                       <span style={{ fontWeight: 'normal', fontSize: '0.8rem', color: '#8d6e63', marginLeft: '8px' }}>
                         ({weakestChapterCount}회 오답)
