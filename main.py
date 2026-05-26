@@ -32,7 +32,7 @@ else:
     print(f"✅ SUCCESS: API Key가 로드되었습니다. (길이: {len(CLAUDE_API_KEY)})")
 
 client = Anthropic(api_key=CLAUDE_API_KEY)
-CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
+CLAUDE_MODEL = "claude-sonnet-4-6"
 USERS_FILE = "users.json"
 
 # --- 유저 저장소 로직 ---
