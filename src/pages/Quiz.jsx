@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-// ⭐ [연동] Supabase 클라이언트 도입
 import { supabase } from '../supabaseClient'; 
 import { addAttempt, getProfile } from '../state/app-state';
 import CodeMirror from '@uiw/react-codemirror';
@@ -12,7 +11,6 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { python } from '@codemirror/lang-python';
 import { cpp } from '@codemirror/lang-cpp';
 
-// 📂 [분리 완료] 복잡한 CCTV 데이터 및 실시간 감지 함수 가져오기
 import {
   pickCctvPool,
   getTutorPersona,
@@ -27,12 +25,10 @@ import {
   CCTVCamChickImageStyle
 } from '../data/cctvConstants';
 
-//  Vite 환경에서 호환되는 브라우저 내장 Web Crypto API로 대체합니다.
 const generateVirtualSessionId = () => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
     return window.crypto.randomUUID();
   }
-  // 구형 브라우저 환경을 위한 폴백(Fallback) 난수 발전기 작동
   return 'session-xxxx-4xxx-yxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -49,14 +45,17 @@ function getDisplayNameFromAuthUser(user) {
 export function Quiz({ t, params }) {
   const location = useLocation();
   const navigate = useNavigate();
-  // 기본 단원 이름 및 난이도 폴백 매칭 구조
-  const settings = location.state || { count: 10, ratio: 50, chapter: 1, difficulty: '기초', mustSolve: false };
 
-  // 🔒 [오답노트 모드] mustSolve: true면 정답 맞출 때까지 다음 문제로 못 넘어감
+  const settings = location.state || {
+    count: 10,
+    ratio: 50,
+    chapter: 'java_basic_c1',
+    difficulty: '기초',
+    mustSolve: false,
+  };
+
   const mustSolve = settings.mustSolve || false;
 
-  // 🛡️ [수정/설계] 컴포넌트 마운트 시 최초 1회만 고유 UUID를 발급하여 세션 ID로 삼습니다.
-  // 이 가상 세션 ID는 user_behavior_logs와 submissions 테이블을 물리 변경 없이 논리적으로 묶어주는 열쇠가 됩니다.
   const [virtualSessionId] = useState(() => generateVirtualSessionId());
 
   const [persona, setPersona] = useState(() => readStoredPersona(params?.persona));
@@ -108,11 +107,8 @@ export function Quiz({ t, params }) {
   const lastCodeEditRef = useRef(null);
   const lastMcqRef = useRef(null);
   const editorTypingTimeoutRef = useRef(null);
-  // 🔒 [오답노트 모드] 마지막 제출 정답 여부를 ref로 관리
   const isCorrectRef = useRef(false);
   
-  // 📊 [수정/지표] 세팅 모달에서 수렴한 count 정보를 분모 상태값(totalGoalCount)으로 선언합니다.
-  // 이 값은 AI가 도중에 처방전을 발행해 챌린지 문제를 추가할 때 동적으로 확장(+1)됩니다.
   const [totalGoalCount, setTotalGoalCount] = useState(() => settings.count || 10);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [mouseOutCount, setMouseOutCount] = useState(0);
@@ -133,66 +129,58 @@ export function Quiz({ t, params }) {
     lastActivityRef.current = Date.now();
   }, []);
 
-  // [Quiz.jsx] 내부 fetchProblemsFromSupabase 점진적 계단식 난이도 자동 정산 엔진 적용본
+  // ✅ 핵심 수정: chapter가 이미 'java_basic_c3' 같은 완성형 문자열 → 그대로 prefix로 사용
   useEffect(() => {
     async function fetchProblemsFromSupabase() {
-      const { count, chapter } = settings; 
+      const { count, chapter, difficulty } = settings;
 
       try {
-        const chapterIdMap = { 1: 'c1', 2: 'c2', 3: 'c3', 4: 'c4' };
-        const targetChapterId = chapterIdMap[chapter] || 'c3';
+        // ✅ chapter = "java_basic_c3" 전체 문자열을 prefix로 그대로 사용
+        // 더 이상 langPrefix, diffPrefix, chapterPrefix 조립 불필요
+        const targetPrefix = String(chapter);
 
-        // 해당 대단원의 모든 자바 문제를 Supabase DB에서 통째로 긁어옵니다.
-        let query = supabase.from('problems')
+        console.log(`[Quiz] 문제 로드 prefix: ${targetPrefix}`);
+
+        const { data: pool, error } = await supabase
+          .from('problems')
           .select('*')
-          .eq('language', 'Java')
-          .ilike('unit', `%_${targetChapterId}_%`);
+          .ilike('unit', `${targetPrefix}%`);
 
-        const { data: pool, error } = await query;
         if (error) throw error;
 
         if (!pool || pool.length === 0) {
-          console.warn(`챕터 ${chapter} (패턴: ${targetChapterId})에 등록된 문제가 없습니다.`);
+          console.warn(`'${targetPrefix}%' 패턴에 해당하는 문제가 없습니다.`);
           setQuizList([]);
           return;
         }
 
-        // 🧠 [황금비율 알고리즘 작동 부문]
-        // 10문제 설정 시 code_level 기준 1단계(50%), 3단계(30%), 5단계(20%)로 비율을 나눕니다.
+        // 황금비율 난이도별 배분
         let targetL5Count = Math.max(0, Math.floor(count * 0.2));
         let targetL3Count = Math.max(0, Math.floor(count * 0.3));
-        
-        // 문항 수가 3개 이상인데 계산상 5단계가 0개가 되면 학습 동기부여를 위해 최소 1개는 심화로 배치합니다.
         if (count >= 3 && targetL5Count === 0) targetL5Count = 1;
         if (count >= 2 && targetL3Count === 0) targetL3Count = 1;
-        
-        // 남은 모든 수량은 몸풀기용 1단계 쉬운 문제군으로 배치합니다.
         let targetL1Count = count - targetL3Count - targetL5Count;
         if (targetL1Count < 0) targetL1Count = 0;
 
-        // DB 문제 수영장(Pool)에서 각 난이도 그룹별 분리 및 무작위 셔플
         const level1Pool = pool.filter(p => p.code_level <= 2).sort(() => 0.5 - Math.random());
         const level3Pool = pool.filter(p => p.code_level >= 3 && p.code_level <= 4).sort(() => 0.5 - Math.random());
         const level5Pool = pool.filter(p => p.code_level >= 5).sort(() => 0.5 - Math.random());
 
-        // 각 난이도 풀에서 계산된 최적의 배분 수량만큼 균등하게 추출합니다.
         const selectedL1 = level1Pool.slice(0, targetL1Count);
         const selectedL3 = level3Pool.slice(0, targetL3Count);
         const selectedL5 = level5Pool.slice(0, targetL5Count);
 
-        // 추출 완료된 문제 목록을 최종 결합합니다.
         let combinedProblems = [...selectedL1, ...selectedL3, ...selectedL5];
 
-        // 🛡️ [만약 데이터가 부족할 경우 방어 코드]
-        // 특정 레벨의 문제가 모자라서 총량이 채워지지 않으면, 전체 문제집에서 랜덤으로 채워줍니다.
+        // 데이터 부족 시 보완
         if (combinedProblems.length < count) {
           const remainingCount = count - combinedProblems.length;
-          const remainingPool = pool.filter(p => !combinedProblems.some(cp => cp.id === p.id))
-                                    .sort(() => 0.5 - Math.random());
+          const remainingPool = pool
+            .filter(p => !combinedProblems.some(cp => cp.id === p.id))
+            .sort(() => 0.5 - Math.random());
           combinedProblems = [...combinedProblems, ...remainingPool.slice(0, remainingCount)];
         }
 
-        // 🚀 [핵심 정렬 로직] 섞이지 않고 무조건 1단계 -> 3단계 -> 5단계 계단식 오름차순으로 출제
         combinedProblems.sort((a, b) => (a.code_level || 1) - (b.code_level || 1));
 
         const mappedList = combinedProblems.map(p => ({
@@ -209,14 +197,13 @@ export function Quiz({ t, params }) {
         setQuizList(mappedList);
       } catch (err) {
         console.error("Supabase 로드 실패:", err.message);
-        setQuizList([]); 
+        setQuizList([]);
       }
     }
 
     fetchProblemsFromSupabase();
   }, [settings]);
   
-  // 문제 인덱스 스위칭 훅 (문제가 바뀔 때마다 해당 데이터 및 행동 분석 상태 초기화)
   useEffect(() => {
     if (quizList.length === 0) return;
     const currentProblem = quizList[currentIndex];
@@ -228,7 +215,6 @@ export function Quiz({ t, params }) {
     setResultStatus(t('quiz_result_wait'));
     setResultColor('#d4d4d4');
     
-    // 다음 문제로 넘어갈 때 미세 행동 요약 변수 초기화
     setTabSwitchCount(0);
     setMouseOutCount(0);
     setSubmitCount(0);
@@ -244,13 +230,11 @@ export function Quiz({ t, params }) {
     if (chatDisplayRef.current) chatDisplayRef.current.scrollTop = chatDisplayRef.current.scrollHeight;
   }, [chatHistory, isChatOpen]);
 
-  // ⏱ [수정/스트리머] 1초 주기의 백그라운드 집중도(K점수) 감지 및 10초 주기의 Throttled 고주파 로그 전송 장치 통합
   useEffect(() => {
     if (!quizList.length) return;
     const currentProblem = quizList[currentIndex];
     if (!currentProblem) return;
     
-    // ① 1초 간격 실시간 정밀 K-Score 적립 처리 타이머
     const timerId = setInterval(() => {
       setStudySeconds((s) => s + 1);
 
@@ -266,11 +250,10 @@ export function Quiz({ t, params }) {
           lastMcqAt: lastMcqRef.current,
           lastActivityAt: lastActivityRef.current,
         });
-        focusScoresRef.current.push(k); // 최종 제출 시점의 k점수 평균 연산을 위해 누적 기록
+        focusScoresRef.current.push(k);
       }
     }, 1000);
 
-    // ② [고주파 스트리머] 10초 간격으로 유저의 마이크로 행동 데이터를 취합하여 Supabase user_behavior_logs에 벌크 전송
     let bufferSeconds = 0;
     const streamId = setInterval(async () => {
       bufferSeconds += 10;
@@ -278,11 +261,10 @@ export function Quiz({ t, params }) {
       const userId = userPayload.id || null;
 
       const payload = {
-        session_id: virtualSessionId, // 묶음 분석을 위해 프론트 가상 세션 ID 주입
+        session_id: virtualSessionId,
         problem_id: currentProblem.id,
         user_id: userId,
         elapsed_time: bufferSeconds,
-        // 현재 10초 프레임에서 수집된 가장 최근의 K-Score 집중도를 상태로 바인딩
         cctv_k_score: focusScoresRef.current[focusScoresRef.current.length - 1] || 3,
         item_code_typing: isEditorTyping,
         item_tab_ok: !docHidden,
@@ -306,7 +288,6 @@ export function Quiz({ t, params }) {
     };
   }, [quizList.length, currentIndex, docHidden, mouseInsideDoc, isEditorTyping, virtualSessionId]);
 
-  // 👀 Visibility API 기반의 실시간 브라우저 탭 이탈률 트래킹 연동
   useEffect(() => {
     const onVis = () => {
       setDocHidden(document.hidden);
@@ -318,7 +299,6 @@ export function Quiz({ t, params }) {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  // 🖱 마우스 포인터의 작업 영역 이탈률(mouseleave) 실시간 트래킹 연동
   useEffect(() => {
     const el = document.documentElement;
     const leave = () => {
@@ -378,42 +358,39 @@ export function Quiz({ t, params }) {
     setTermOutput((prev) => [...prev, { type, text: `> ${msg}` }]);
 
   const handleSendChat = async (message = null, chipKeyword = null) => {
-  const text = message || chatInput.trim();
-  if (!text) return;
-  setChatInput('');
-  
-  const currentProblem = quizList[currentIndex];
-  // 💡 thinking 상태를 추가해 UI적으로 AI가 생각 중임을 알림
-  setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: '생각 중이야 삐약... 🐥', thinking: true }]);
-  
-  try {
-    const response = await fetch('http://127.0.0.1:8000/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_question: text,
-        user_code: codeValue,
-        problem_context: `${currentProblem.title}: ${currentProblem.desc}`,
-        // 💡 챗봇 기록(history)을 명확한 역할 기반으로 정제해서 보냄
-        history: chatHistory.map(h => ({ 
-           role: h.role === 'bot' ? 'assistant' : 'user', 
-           text: h.text 
-        }))
-      })
-    });
+    const text = message || chatInput.trim();
+    if (!text) return;
+    setChatInput('');
+    
+    const currentProblem = quizList[currentIndex];
+    setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: '생각 중이야 삐약... 🐥', thinking: true }]);
+    
+    try {
+      const response = await fetch('http://127.0.0.1:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_question: text,
+          user_code: codeValue,
+          problem_context: `${currentProblem.title}: ${currentProblem.desc}`,
+          history: chatHistory.map(h => ({ 
+             role: h.role === 'bot' ? 'assistant' : 'user', 
+             text: h.text 
+          }))
+        })
+      });
 
-    const data = await response.json();
-    setChatHistory((prev) => [
-      ...prev.filter((m) => !m.thinking),
-      { role: 'bot', text: data.answer }
-    ]);
-  } catch (err) {
-    console.error("백엔드 통신 에러:", err);
-    setChatHistory((prev) => [...prev.filter(m => !m.thinking), { role: 'bot', text: "네트워크가 불안정해 삐약! 🐥" }]);
-  }
-};
+      const data = await response.json();
+      setChatHistory((prev) => [
+        ...prev.filter((m) => !m.thinking),
+        { role: 'bot', text: data.answer }
+      ]);
+    } catch (err) {
+      console.error("백엔드 통신 에러:", err);
+      setChatHistory((prev) => [...prev.filter(m => !m.thinking), { role: 'bot', text: "네트워크가 불안정해 삐약! 🐥" }]);
+    }
+  };
 
-  // 🎯 [신규 기능] 학습자 맞춤형 AI 보강 챌린지 문제 동적 처방 및 세션 확장 연동
   const triggerAiProblemGeneration = async () => {
     addTermLog('학습자의 오답 분석 패턴을 기반으로 AI 맞춤형 챌린지 코딩 문제를 조립 중입니다 삐약... 🐥', 'system');
     
@@ -425,7 +402,7 @@ export function Quiz({ t, params }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chapter_title: currentChapterObj.title || "Java 기초",
+          chapter_title: typeof currentChapterObj === 'string' ? currentChapterObj : currentChapterObj.title || "Java 기초",
           difficulty: currentProblem?.difficulty || "중급",
           recent_wrong_concepts: currentProblem?.keywords || ["loop"]
         })
@@ -434,11 +411,7 @@ export function Quiz({ t, params }) {
       if (!response.ok) throw new Error('API 서버 연결 실패');
       
       const aiProblem = await response.json();
-      
-      // 1. 기존 학습 목록 최하단에 생성된 AI 문제를 병합 주입
       setQuizList((prev) => [...prev, aiProblem]);
-      
-      // 2. 📊 [성과도 수식 동기화] 동적 완수도 계산에서 에러가 나지 않도록 분모를 +1 증가시킵니다.
       setTotalGoalCount((prev) => prev + 1);
       
       addTermLog('성공: 삐약이가 새로운 챌린지 보완 코딩 문제를 처방했습니다! 퀴즈 리스트를 확인해봐! 🎉', 'success');
@@ -476,7 +449,6 @@ export function Quiz({ t, params }) {
       return;
     }
 
-    // 💡 변수 선언은 딱 한 번만!
     let isCorrect = false;
 
     if (currentProblem.type === 'multiple' || currentProblem.type === 'ox') {
@@ -486,12 +458,9 @@ export function Quiz({ t, params }) {
       }
       isCorrect = (selectedOption === currentProblem.answer);
     } else {
-      // 1. 비교용 클렌징 코드
       const userCodeClean = String(codeValue || '').replace(/\s+/g, '').toLowerCase();
       const dbAnswerClean = String(currentProblem?.answer || '').replace(/\s+/g, '').toLowerCase();
 
-      // 2. 채점 로직 통합: 
-      // 레벨 5는 전체 일치 검사, 레벨 1~3은 포함 여부(또는 키워드) 검사
       if (currentProblem.code_level === 5) {
         isCorrect = (userCodeClean === dbAnswerClean);
       } else {
@@ -505,38 +474,25 @@ export function Quiz({ t, params }) {
 
     isCorrectRef.current = isCorrect;
     
-    // 📊 [행동 데이터] 누적 평균 몰입도 산출 연산
     const scoresArray = focusScoresRef.current;
     const avgFocusScore = scoresArray.length > 0
       ? Number((scoresArray.reduce((acc, val) => acc + val, 0) / scoresArray.length).toFixed(2))
       : 4.00;
 
-    // 🎯 [Supabase 보완된 submissions 스키마에 맞춰 완벽 저장 및 전송]
     try {
-      // 1. 유저 ID 확보 (로그인이 안 되어 있으면 익명 테스트용 샘플 uuid나 null 처리)
       const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
       const userId = userPayload.id || null; 
 
-      // 2. 소수점 자리수 유지를 위해 정밀 변환
-      const scoresArray = focusScoresRef.current;
-      const avgFocusScore = scoresArray.length > 0
-        ? Number((scoresArray.reduce((acc, val) => acc + val, 0) / scoresArray.length).toFixed(2))
-        : 4.00;
-
-      // 3. 데이터 삽입 시작
       const { error } = await supabase.from('submissions').insert([{
-        user_id: userId, // ⚠️ RLS 통과를 위해 반드시 유효한 auth.users의 UUID여야 함!
+        user_id: userId,
         problem_id: currentProblem.id,
-        session_id: virtualSessionId, // 📊 [추가/연동] submissions 전송 시에도 가상 세션 ID를 삽입하여 정합성을 맞춥니다.
-        unit: currentProblem.unit || `c${settings.chapter}`,
-        unit_level: settings.difficulty || '기초', // 📊 [보완/수정] Home에서 선택하고 넘어온 한글 난이도를 매핑 주입
+        session_id: virtualSessionId,
+        unit: currentProblem.unit || String(settings.chapter),
+        unit_level: settings.difficulty || '기초',
         code_level: currentProblem.code_level || 3,
         problem_tag: currentProblem.keywords || [],
-        
-        // 📝 [보완] 실제 테이블 컬럼명 매핑 완료
         answer: String(currentProblem.answer || ''), 
         user_code: codeValue.trim() !== '' ? codeValue : String(selectedOption || ''),
-        
         is_correct: isCorrect,
         study_seconds: studySeconds,
         tab_switch_count: tabSwitchCount,
@@ -551,7 +507,6 @@ export function Quiz({ t, params }) {
       console.error("Supabase submissions DB 기록 오류:", err.message);
     }
 
-    // 로컬 디버깅 및 컴포넌트 내부 스냅숏 보존
     addAttempt({
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       createdAt: Date.now(),
@@ -588,9 +543,6 @@ export function Quiz({ t, params }) {
         setChatHistory((prev) => [...prev, { role: 'bot', text: '아쉽지만 오답이야... 다음 번엔 맞출 수 있을 거야! 🐥' }]);
         setIsChatOpen(true);
         setCctvResultTone('wrong');
-
-        // 🎯 [실시간 처방]: 최종 채점이 오답일 경우, AI 취약 저격형 챌린지 생성 함수를 동적 가동!
-        // 🔒 [오답노트 모드]에서는 AI 문제 생성 안 함
         if (!mustSolve) triggerAiProblemGeneration();
       }
     }, 500);
@@ -635,6 +587,14 @@ export function Quiz({ t, params }) {
         : 'quiz-reaction-chick-wrap--float',
   ].join(' ');
 
+  // ✅ chapter 문자열("java_basic_c3")에서 표시용 타이틀 추출
+  const chapterDisplayTitle = (() => {
+    const ch = settings.chapter;
+    if (typeof ch === 'string') return ch;
+    if (ch && typeof ch === 'object' && ch.title) return ch.title;
+    return '알 수 없는 단원';
+  })();
+
   const centerColumn = (
     <div className="center" onPointerDownCapture={() => { if (!isChatOpen) bumpActivity(); }}>
       {currentProblem.type === 'coding' ? (
@@ -647,8 +607,8 @@ export function Quiz({ t, params }) {
             }
             height="350px"
             extensions={[
-              currentProblem.unit?.includes('py') ? python() : 
-              currentProblem.unit?.includes('c') ? cpp() : 
+              currentProblem.unit?.startsWith('py') ? python() :
+              currentProblem.unit?.startsWith('c_') ? cpp() :
               java()
             ]}
             theme={oneDark}
@@ -708,7 +668,6 @@ export function Quiz({ t, params }) {
         </div>
       </div>
       <div className="footer" style={{ marginTop: 'auto' }}>
-        {/* 🔒 [오답노트 모드] 오답이면 버튼 텍스트를 '다시 풀기'로 표시 */}
         <button className="clay-submit" onClick={handleSubmit} style={{ width: '100%' }}>
           {isSubmitted
             ? mustSolve && !isCorrectRef.current
@@ -722,9 +681,6 @@ export function Quiz({ t, params }) {
     </div>
   );
 
-  const currentChapterObj = settings.chapter || { title: "알 수 없는 단원" };
-
-  // 📊 [수정/연산] 동적 분모 totalGoalCount와 현재 완료 문항을 매핑하여 백분율 스탯 산출
   const currentCompletionRate = Math.round((currentIndex / totalGoalCount) * 100);
 
   return (
@@ -733,13 +689,13 @@ export function Quiz({ t, params }) {
         <button id="backToMain" title="돌아가기" onClick={() => navigate(-1)}>❮</button>
         <div className="logo">CHICKODE</div>
         <div className="top-right-group">
-          {/* 🔒 [오답노트 모드] 배지 표시 */}
           {mustSolve && (
             <span className="chapter-badge" style={{ background: '#ef5350', color: 'white', fontFamily: "'Jua', sans-serif" }}>
               🔒 오답노트 모드
             </span>
           )}
-          <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{currentChapterObj.title}</span>
+          {/* ✅ chapter 문자열에서 표시용 타이틀 안전하게 추출 */}
+          <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{chapterDisplayTitle}</span>
           <div className="user-tag">👤 {displayName} 님</div>
         </div>
       </nav>
@@ -752,7 +708,6 @@ export function Quiz({ t, params }) {
           <div style={{ fontSize: 12, color: '#5c3d2e', marginBottom: 6 }}>
             {getPersonaModeDisplay(persona)}
           </div>
-          {/* 📊 동적 분모(AI 문제 발생 시 자동 보정)가 정밀하게 반영된 성과도 대시보드 컴포넌트 */}
           <div className="quiz-progress-panel">
             <div className="quiz-progress-label">
               성과도: {currentCompletionRate}% ({currentIndex} / {totalGoalCount} 문제 완료)
