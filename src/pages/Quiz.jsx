@@ -385,7 +385,7 @@ export function Quiz({ t, params }) {
     setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: '생각 중이야 삐약... 🐥', thinking: true }]);
     
     try {
-      const response = await fetch('http://127.0.0.1:8000/chat', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -417,7 +417,7 @@ export function Quiz({ t, params }) {
       const currentProblem = quizList[currentIndex];
       const currentChapterObj = settings.chapter || { title: "Java 기초" };
       
-      const response = await fetch('http://127.0.0.1:8000/generate-problem', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate-problem`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
