@@ -606,8 +606,6 @@ export function Quiz({ t, params }) {
         : 'quiz-reaction-chick-wrap--float',
   ].join(' ');
 
-<<<<<<< HEAD
-=======
   // ✅ 수정: chapter ID로 constants에서 한글 타이틀 찾기
   const chapterDisplayTitle = (() => {
     const ch = settings.chapter;
@@ -625,7 +623,6 @@ export function Quiz({ t, params }) {
     return String(ch); // 못 찾으면 원래 문자열 그대로 표시 (안전 폴백)
   })();
 
->>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
   const centerColumn = (
     <div className="center" onPointerDownCapture={() => { if (!isChatOpen) bumpActivity(); }}>
       {currentProblem.type === 'coding' ? (
@@ -725,11 +722,8 @@ export function Quiz({ t, params }) {
               🔒 오답노트 모드
             </span>
           )}
-<<<<<<< HEAD
-=======
           {/* ✅ chapter ID → 한글 타이틀로 표시 */}
           <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{chapterDisplayTitle}</span>
->>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
           <div className="user-tag">👤 {displayName} 님</div>
         </div>
       </nav>
