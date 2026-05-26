@@ -140,7 +140,7 @@ export function Pattern({ t }) {
                   문제 풀 때 다른 탭으로 이동한 횟수가 많아요. 답을 먼저 찾아보는 습관이 생겼을 수 있어요.
                 </p>
                 {hasTabHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.95rem', color: '#5d4037', lineHeight: '1.6' }}>
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.tab_switch ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
@@ -164,7 +164,7 @@ export function Pattern({ t }) {
                   문항당 평균 {Math.round(stats.avgSubmits)}번 틀리고 있어요. 제출 전에 한 번 더 확인해봐요!
                 </p>
                 {hasTypingHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ffa726', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ffa726', fontSize: '0.95rem', color: '#5d4037', lineHeight: '1.6' }}>
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.typing_frenzy ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
@@ -188,7 +188,7 @@ export function Pattern({ t }) {
                   마우스가 화면 밖에 머무는 시간이 길어요. 폰을 자주 확인하고 있는 건 아닌가요?
                 </p>
                 {hasMouseHabit && (
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.95rem', color: '#5d4037', lineHeight: '1.6' }}>
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.mouse_wander ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
@@ -205,16 +205,16 @@ export function Pattern({ t }) {
           {/* SECTION 4: 동적 세션 완수도 이정표 카드 가동 → 취약 언어 + 챕터 AI 분석으로 교체 */}
           <div style={{ background: '#efebe9', borderRadius: '16px', padding: '28px 24px', border: '1px solid #d7ccc8', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem', fontWeight: '800' }}>🎯 취약 언어 · 챕터 정밀 분석</h3>
-            <p style={{ fontSize: '0.8rem', color: '#8d6e63', margin: '0 0 16px 0' }}>오답 패턴과 학습 습관을 연결한 병아리 선배의 진단이에요</p>
+            <p style={{ fontSize: '0.95rem', fontWeight: '800', color: '#8d6e63', margin: '0 0 16px 0' }}>오답 패턴과 학습 습관을 연결한 병아리 선배의 진단이에요</p>
 
             {wrongAttempts.length === 0 ? (
-              <p style={{ color: '#8d6e63', fontSize: '0.9rem', textAlign: 'center' }}>
+              <p style={{ color: '#8d6e63', fontSize: '0.95rem', textAlign: 'center' }}>
                 아직 오답 데이터가 없어요! 문제를 풀면 취약 분석이 시작돼요 🐥
               </p>
             ) : (
               <>
                 {/* Claude 분석 텍스트 */}
-                <div style={{ padding: '14px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #c62828', fontSize: '0.85rem', color: '#3e2723', lineHeight: '1.7', marginBottom: '20px' }}>
+                <div style={{ padding: '14px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #c62828', fontSize: '0.95rem', color: '#3e2723', lineHeight: '1.7', marginBottom: '20px' }}>
                   {prescriptionsLoading.weakness_analysis ? (
                     <span style={{ color: '#8d6e63', fontStyle: 'italic' }}>🐣 병아리 선배가 오답 데이터를 들여다보며 취약 패턴을 분석하고 있구... 📝</span>
                   ) : (

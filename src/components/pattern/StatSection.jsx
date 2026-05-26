@@ -168,7 +168,7 @@ export function StatSection({ stats }) {
   return (
     <div style={{ background: 'white', borderRadius: '20px', padding: '20px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
       <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span>📈</span> 초보자 친화적 역량 성취 지표
+        <span>📈</span> 내 실력 성장 리포트
       </h2>
 
       {/* 상단: 레이더 차트 + 게이지 바 */}
@@ -185,7 +185,7 @@ export function StatSection({ stats }) {
         </div>
       </div>
 
-      <div style={{ marginTop: '16px', padding: '12px', background: '#f1f8e9', borderRadius: '10px', border: '1px solid #dcedc8', fontSize: '0.8rem', color: '#33691e', lineHeight: '1.6' }}>
+      <div style={{ marginTop: '16px', padding: '12px', background: '#f1f8e9', borderRadius: '10px', border: '1px solid #dcedc8', fontSize: '0.95rem', color: '#33691e', lineHeight: '1.6' }}>
         {/* 로딩 표시기 분기문 인젝션 및 레거시 주석 보존 */}
         <strong>💡 엔진 종합 해설:</strong>{" "}
         {feedbackLoading ? (
