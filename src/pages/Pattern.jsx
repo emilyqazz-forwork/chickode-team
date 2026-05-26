@@ -67,29 +67,8 @@ export function Pattern({ t }) {
 
           <StatSection stats={stats} />
 
-<<<<<<< HEAD
           {/* SECTION 3: CCTV 로그 기반 3대 나쁜 습관 탐지 정밀 진단 */}
           <div style={{ background: 'white', borderRadius: '20px', padding: '28px 24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-=======
-          <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>⏱️</span> 난이도 비선형 가중치 보정 해결 템포
-            </h2>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', padding: '16px', borderRadius: '14px', border: '1px solid #eee' }}>
-              <div>
-                <div style={{ fontSize: '0.8rem', color: '#8d6e63', fontWeight: 'bold' }}>과거 대비 인지 템포 가속도</div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 'bold', color: '#e64a19', marginTop: '4px' }}>
-                  {stats.timeGrowthRate > 0 ? `+${stats.timeGrowthRate}% 더 기민해짐` : `${stats.timeGrowthRate}%`}
-                </div>
-              </div>
-              <div style={{ maxWidth: '65%', fontSize: '0.85rem', color: '#5d4037', lineHeight: '1.45', textAlign: 'right' }}>
-                알고리즘 난이도에 따른 인지 과부하 지수 가중치($W_i$)를 수식에 반영하여 시간 데이터를 정규화한 결과입니다. 지난 세션 대비 <strong>불필요한 시간 낭비가 대폭 감쇄</strong>되었습니다.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
->>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
             <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>🚨</span> 학습 습관 분석
             </h2>
@@ -110,11 +89,7 @@ export function Pattern({ t }) {
                   문제 풀 때 다른 탭으로 이동한 횟수가 많아요. 답을 먼저 찾아보는 습관이 생겼을 수 있어요.
                 </p>
                 {hasTabHabit && (
-<<<<<<< HEAD
                   <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
-=======
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4', maxHeight: '80px', overflowY: 'auto' }}>
->>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.tab_switch ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
@@ -176,13 +151,8 @@ export function Pattern({ t }) {
             </div>
           </div>
 
-<<<<<<< HEAD
           {/* SECTION 4: 동적 세션 완수도 이정표 카드 가동 */}
           <div style={{ background: '#efebe9', borderRadius: '16px', padding: '28px 24px', border: '1px solid #d7ccc8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-=======
-          {/* SECTION 4: ✅ weakestChapter 완성형 문자열 변환 후 navigate */}
-          <div style={{ background: '#efebe9', borderRadius: '16px', padding: '20px', border: '1px solid #d7ccc8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
->>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
             <div style={{ maxWidth: '70%' }}>
               <h3 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 'bold' }}>🎯 오늘 세션 진행률</h3>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#5d4037', lineHeight: '1.45' }}>
