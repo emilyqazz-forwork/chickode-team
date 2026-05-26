@@ -587,14 +587,6 @@ export function Quiz({ t, params }) {
         : 'quiz-reaction-chick-wrap--float',
   ].join(' ');
 
-  // ✅ chapter 문자열("java_basic_c3")에서 표시용 타이틀 추출
-  const chapterDisplayTitle = (() => {
-    const ch = settings.chapter;
-    if (typeof ch === 'string') return ch;
-    if (ch && typeof ch === 'object' && ch.title) return ch.title;
-    return '알 수 없는 단원';
-  })();
-
   const centerColumn = (
     <div className="center" onPointerDownCapture={() => { if (!isChatOpen) bumpActivity(); }}>
       {currentProblem.type === 'coding' ? (
@@ -694,8 +686,6 @@ export function Quiz({ t, params }) {
               🔒 오답노트 모드
             </span>
           )}
-          {/* ✅ chapter 문자열에서 표시용 타이틀 안전하게 추출 */}
-          <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{chapterDisplayTitle}</span>
           <div className="user-tag">👤 {displayName} 님</div>
         </div>
       </nav>
