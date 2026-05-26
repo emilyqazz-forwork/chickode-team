@@ -100,49 +100,38 @@ function RadarChart({ current, baseline }) {
 }
 
 // ─────────────────────────────────────────────
-// 2. 이해력 점수 카드 (획득 / 틀린 횟수 / 힌트 감점)
+// 2. 스택 바 차트 (이해력 감점 요인 분해)
 // ─────────────────────────────────────────────
 function ConceptStackBar({ stats }) {
   const hintPenalty   = Math.min(100, Math.round((stats.avgHints || 0) * 12));
   const submitPenalty = Math.min(100 - hintPenalty, Math.round(stats.avgSubmits * 5));
   const earned        = Math.max(0, stats.conceptual);
+  const remainW       = Math.max(0, 100 - earned - submitPenalty - hintPenalty);
 
-  let title = '이번주 이해력 점수 분석이에요';
-  if (submitPenalty === 0 && hintPenalty === 0) {
-    title = '완벽해요! 감점이 없어요 🎉';
-  } else if (submitPenalty > hintPenalty) {
-    title = '틀린 횟수가 많아서 점수가 깎였어요 😅';
-  } else if (hintPenalty > submitPenalty) {
-    title = '힌트를 많이 써서 점수가 깎였어요 💡';
-  }
-
-  const cardCommon = {
-    flex: 1,
-    borderRadius: '10px',
-    padding: '10px 8px',
-    textAlign: 'center',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-  };
+  const segments = [
+    { width: earned,        color: '#42a5f5', label: `획득 ${earned}점` },
+    { width: submitPenalty, color: '#ffa726', label: `제출 -${submitPenalty}` },
+    { width: hintPenalty,   color: '#ef5350', label: `힌트 -${hintPenalty}` },
+    { width: remainW,       color: '#f5f0e8', label: '' },
+  ];
 
   return (
     <div>
       <div style={{ fontSize: '11px', color: '#8d6e63', marginBottom: '6px', fontWeight: '600' }}>
-        {title}
+        개념 이해력 감점 요인 분해
       </div>
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <div style={{ ...cardCommon, background: '#e8f5e9', color: '#2e7d32' }}>
-          <div>✅ 획득</div>
-          <div style={{ fontSize: '1.1rem' }}>{earned}점</div>
-        </div>
-        <div style={{ ...cardCommon, background: '#fff3e0', color: '#e65100' }}>
-          <div>❌ 틀린 횟수</div>
-          <div style={{ fontSize: '1.1rem' }}>-{submitPenalty}점</div>
-        </div>
-        <div style={{ ...cardCommon, background: '#fce4ec', color: '#c62828' }}>
-          <div>💡 힌트 사용</div>
-          <div style={{ fontSize: '1.1rem' }}>-{hintPenalty}점</div>
-        </div>
+      <div style={{ display: 'flex', height: '16px', borderRadius: '8px', overflow: 'hidden' }}>
+        {segments.map((s, i) => (
+          <div key={i} style={{ width: `${s.width}%`, background: s.color, transition: 'width 0.5s ease' }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+        {segments.filter(s => s.label).map((s, i) => (
+          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#5d4037' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: s.color, display: 'inline-block' }} />
+            {s.label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -177,7 +166,8 @@ function FocusDonut({ value }) {
         transform: 'translate(-50%, -50%)',
         textAlign: 'center', lineHeight: 1
       }}>
-        <div style={{ fontSize: '16px', fontWeight: '800', color: '#3e2723', whiteSpace: 'nowrap' }}>{value}점</div>
+        <div style={{ fontSize: '12px', fontWeight: '700', color: '#3e2723' }}>{value}</div>
+        <div style={{ fontSize: '9px', color: '#8d6e63' }}>점</div>
       </div>
     </div>
   );
@@ -195,7 +185,7 @@ function GaugeBar({ value, baseline, label, gradient }) {
         <span style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>
           {value}점
           <span style={{ color: delta >= 0 ? '#4caf50' : '#ef5350', fontSize: '0.75rem', marginLeft: '4px' }}>
-            {delta >= 20 ? '많이 늘었삐약! 🐥' : delta >= 5 ? '잘 하고 있어~ 🐥' : delta >= 0 ? '유지 중!' : '분발해야겠는데?~ 💪'}
+            {delta >= 0 ? '▲' : '▼'} ({delta >= 0 ? '+' : ''}{delta.toFixed(1)})
           </span>
         </span>
       </div>
@@ -213,7 +203,7 @@ export function StatSection({ stats }) {
   return (
     <div style={{ background: 'white', borderRadius: '20px', padding: '20px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
       <h2 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span>📈</span> 이번주 나의 학습 성적표
+        <span>📈</span> 초보자 친화적 역량 성취 지표
       </h2>
 
       {/* 상단: 레이더 차트 + 도넛 + 스택 바 */}
@@ -227,8 +217,8 @@ export function StatSection({ stats }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <FocusDonut value={stats.focus} />
             <div style={{ fontSize: '11px', color: '#5d4037', lineHeight: '1.6' }}>
-              <strong style={{ fontSize: '12px' }}>집중력</strong><br />
-              아직 올릴 수 있는 여유가 있어요!
+              <strong style={{ fontSize: '12px' }}>인지 몰입력</strong><br />
+              빈 공간은 아직 채울 수 있는<br />집중 여지입니다.
             </div>
           </div>
           <ConceptStackBar stats={stats} />
@@ -237,9 +227,13 @@ export function StatSection({ stats }) {
 
       {/* 하단: 게이지 바 3개 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <GaugeBar value={stats.implementation} baseline={PAST_STATS_BASELINE.implementation} label="💻 구현력 — 코드를 직접 짜는 능력" gradient="linear-gradient(90deg, #a5d6a7, #66bb6a)" />
-        <GaugeBar value={stats.conceptual} baseline={PAST_STATS_BASELINE.conceptual} label="💡 이해력 — 개념을 얼마나 이해했는지" gradient="linear-gradient(90deg, #90caf9, #42a5f5)" />
-        <GaugeBar value={stats.focus} baseline={PAST_STATS_BASELINE.focus} label="👁️ 몰입력 — 집중해서 문제 푼 정도" gradient="linear-gradient(90deg, #ffe082, #ffb74d)" />
+        <GaugeBar value={stats.implementation} baseline={PAST_STATS_BASELINE.implementation} label="💻 구현력 (Implementation)" gradient="linear-gradient(90deg, #a5d6a7, #66bb6a)" />
+        <GaugeBar value={stats.conceptual} baseline={PAST_STATS_BASELINE.conceptual} label="💡 이해력 (Conceptual)" gradient="linear-gradient(90deg, #90caf9, #42a5f5)" />
+        <GaugeBar value={stats.focus} baseline={PAST_STATS_BASELINE.focus} label="👁️ 몰입력 (Focus)" gradient="linear-gradient(90deg, #ffe082, #ffb74d)" />
+      </div>
+
+      <div style={{ marginTop: '16px', padding: '12px', background: '#f1f8e9', borderRadius: '10px', border: '1px solid #dcedc8', fontSize: '0.8rem', color: '#33691e', lineHeight: '1.6' }}>
+        <strong>💡 엔진 종합 해설:</strong> 어려운 문항에서 빌드가 최종 실패했더라도 끝까지 도전을 지속한 제출 근성 수치가 연산 보정식에 반영되어, 단순 통계 대비 <strong>실제 소스코드 제어력이 탄탄하게 성장</strong>하고 있음을 증명합니다.
       </div>
     </div>
   );
