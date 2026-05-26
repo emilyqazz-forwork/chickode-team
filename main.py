@@ -17,7 +17,8 @@ app = FastAPI()
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["https://chickode.netlify.app"], 
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
