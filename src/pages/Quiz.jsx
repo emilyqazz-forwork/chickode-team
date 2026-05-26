@@ -131,28 +131,52 @@ export function Quiz({ t, params }) {
 
   // ✅ 핵심 수정: chapter가 이미 'java_basic_c3' 같은 완성형 문자열 → 그대로 prefix로 사용
   useEffect(() => {
-    async function fetchProblemsFromSupabase() {
-      const { count, chapter, difficulty } = settings;
+  async function fetchProblemsFromSupabase() {
+    const { count, chapter, difficulty, problemId } = settings;
 
-      try {
-        // ✅ chapter = "java_basic_c3" 전체 문자열을 prefix로 그대로 사용
-        // 더 이상 langPrefix, diffPrefix, chapterPrefix 조립 불필요
-        const targetPrefix = String(chapter);
-
-        console.log(`[Quiz] 문제 로드 prefix: ${targetPrefix}`);
-
-        const { data: pool, error } = await supabase
+    try {
+      // ✅ problemId가 있으면 해당 문제만 직접 로드 (오답노트 다시풀기 모드)
+      if (problemId) {
+        const { data, error } = await supabase
           .from('problems')
           .select('*')
-          .ilike('unit', `${targetPrefix}%`);
+          .eq('id', problemId)
+          .single();
 
         if (error) throw error;
+        if (!data) { setQuizList([]); return; }
 
-        if (!pool || pool.length === 0) {
-          console.warn(`'${targetPrefix}%' 패턴에 해당하는 문제가 없습니다.`);
-          setQuizList([]);
-          return;
-        }
+        setQuizList([{
+          ...data,
+          title: data.title || '코딩 문제',
+          desc: data.description || '',
+          type: data.type || 'coding',
+          difficulty: data.code_level === 1 ? '기초' : data.code_level === 5 ? '고급' : '중급',
+          template: data.template_code ? data.template_code.split('\\n').join('\n') : `public class Main { ... }`,
+          answer: data.answer || '',
+          expectedExample: data.expected_example || data.answer || ''
+        }]);
+        return; // 여기서 끝, 아래 랜덤 로직 실행 안 함
+      }
+
+      // ✅ problemId 없으면 기존 챕터 랜덤 로드 로직 실행
+      const targetPrefix = String(chapter);
+      console.log(`[Quiz] 문제 로드 prefix: ${targetPrefix}`);
+
+      const { data: pool, error } = await supabase
+        .from('problems')
+        .select('*')
+        .ilike('unit', `${targetPrefix}%`);
+
+      if (error) throw error;
+
+      if (!pool || pool.length === 0) {
+        console.warn(`'${targetPrefix}%' 패턴에 해당하는 문제가 없습니다.`);
+        setQuizList([]);
+        return;
+      }
+
+      // 이하 기존 황금비율 배분 로직 동일...
 
         // 황금비율 난이도별 배분
         let targetL5Count = Math.max(0, Math.floor(count * 0.2));
