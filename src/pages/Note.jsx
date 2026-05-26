@@ -464,7 +464,7 @@ export function Note({ t }) {
 
                     {/* 액션 버튼 */}
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <button onClick={() => navigate('/play', { state: { chapter: item.chapterNum, count: 5, ratio: 50, difficulty: item.unit_level || '기초', mustSolve: true } })}
+                      <button onClick={() => navigate('/play', { state: {problemId: item.problem_id, chapter: item.chapterId, count: 1, ratio: 50, difficulty: item.unit_level || '기초', mustSolve: true }})}
                         style={{ padding: '8px 16px', borderRadius: '8px', background: '#ff8f00', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
                         다시 풀기
                       </button>

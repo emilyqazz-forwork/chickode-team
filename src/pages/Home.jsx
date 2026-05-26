@@ -184,6 +184,13 @@ export function Home({ t, lang }) {
     return () => window.clearTimeout(timer);
   }, [startTutorial]);
 
+  // ✅ 추가: 네비바 문제풀기 버튼에서 발사한 이벤트 수신 → 언어선택 모달 자동 오픈
+  useEffect(() => {
+    const onOpenQuiz = () => setStep('lang');
+    window.addEventListener('chickode:open_quiz_modal', onOpenQuiz);
+    return () => window.removeEventListener('chickode:open_quiz_modal', onOpenQuiz);
+  }, []);
+
   useEffect(() => {
     const bgTimer = window.setInterval(() => {
       setActiveBg((current) => {
@@ -343,22 +350,20 @@ export function Home({ t, lang }) {
         />
       )}
 
-      {/* ✅ 핵심 수정: unitLang과 difficulty(한글 변환)를 함께 실어서 /play로 이동 */}
       {step === 'setting' && (
         <QuizSettingModal
           t={t}
           onClose={closeAll}
           onBack={() => setStep('chapter')}
           onStart={(settings) => {
-            // 영문 레벨 ID → Quiz.jsx가 기대하는 한글 난이도로 변환
             const diffLabelMap = { basic: '기초', mid: '중급', adv: '고급' };
             closeAll();
             navigate('/play', {
               state: {
                 ...settings,
                 chapter: selectedChapter,
-                unitLang: selectedLang,                           // ✅ 'java' | 'py' | 'c'
-                difficulty: diffLabelMap[selectedLevel] || '기초', // ✅ '기초' | '중급' | '고급'
+                unitLang: selectedLang,
+                difficulty: diffLabelMap[selectedLevel] || '기초',
               },
             });
           }}

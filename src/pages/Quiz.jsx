@@ -10,6 +10,8 @@ import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { python } from '@codemirror/lang-python';
 import { cpp } from '@codemirror/lang-cpp';
+// ✅ 추가: 챕터 한글 타이틀 조회용
+import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from '../data/constants';
 
 import {
   pickCctvPool,
@@ -129,16 +131,35 @@ export function Quiz({ t, params }) {
     lastActivityRef.current = Date.now();
   }, []);
 
-  // ✅ 핵심 수정: chapter가 이미 'java_basic_c3' 같은 완성형 문자열 → 그대로 prefix로 사용
   useEffect(() => {
     async function fetchProblemsFromSupabase() {
-      const { count, chapter, difficulty } = settings;
+      const { count, chapter, difficulty, problemId } = settings;
 
       try {
-        // ✅ chapter = "java_basic_c3" 전체 문자열을 prefix로 그대로 사용
-        // 더 이상 langPrefix, diffPrefix, chapterPrefix 조립 불필요
-        const targetPrefix = String(chapter);
+        if (problemId) {
+          const { data, error } = await supabase
+            .from('problems')
+            .select('*')
+            .eq('id', problemId)
+            .single();
 
+          if (error) throw error;
+          if (!data) { setQuizList([]); return; }
+
+          setQuizList([{
+            ...data,
+            title: data.title || '코딩 문제',
+            desc: data.description || '',
+            type: data.type || 'coding',
+            difficulty: data.code_level === 1 ? '기초' : data.code_level === 5 ? '고급' : '중급',
+            template: data.template_code ? data.template_code.split('\\n').join('\n') : `public class Main { ... }`,
+            answer: data.answer || '',
+            expectedExample: data.expected_example || data.answer || ''
+          }]);
+          return;
+        }
+
+        const targetPrefix = String(chapter);
         console.log(`[Quiz] 문제 로드 prefix: ${targetPrefix}`);
 
         const { data: pool, error } = await supabase
@@ -154,7 +175,6 @@ export function Quiz({ t, params }) {
           return;
         }
 
-        // 황금비율 난이도별 배분
         let targetL5Count = Math.max(0, Math.floor(count * 0.2));
         let targetL3Count = Math.max(0, Math.floor(count * 0.3));
         if (count >= 3 && targetL5Count === 0) targetL5Count = 1;
@@ -172,7 +192,6 @@ export function Quiz({ t, params }) {
 
         let combinedProblems = [...selectedL1, ...selectedL3, ...selectedL5];
 
-        // 데이터 부족 시 보완
         if (combinedProblems.length < count) {
           const remainingCount = count - combinedProblems.length;
           const remainingPool = pool
@@ -587,6 +606,26 @@ export function Quiz({ t, params }) {
         : 'quiz-reaction-chick-wrap--float',
   ].join(' ');
 
+<<<<<<< HEAD
+=======
+  // ✅ 수정: chapter ID로 constants에서 한글 타이틀 찾기
+  const chapterDisplayTitle = (() => {
+    const ch = settings.chapter;
+    if (!ch) return '알 수 없는 단원';
+
+    // 모든 언어/난이도 챕터를 통합해서 id로 한글 타이틀 검색
+    const allChapters = [
+      ...Object.values(JAVA_CHAPTERS).flat(),
+      ...Object.values(PYTHON_CHAPTERS).flat(),
+      ...Object.values(C_CHAPTERS).flat(),
+    ];
+
+    const found = allChapters.find(c => c.id === String(ch));
+    if (found) return found.title; // "2단원: 객체지향 핵심 4대 원칙" 같은 한글 타이틀
+    return String(ch); // 못 찾으면 원래 문자열 그대로 표시 (안전 폴백)
+  })();
+
+>>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
   const centerColumn = (
     <div className="center" onPointerDownCapture={() => { if (!isChatOpen) bumpActivity(); }}>
       {currentProblem.type === 'coding' ? (
@@ -686,6 +725,11 @@ export function Quiz({ t, params }) {
               🔒 오답노트 모드
             </span>
           )}
+<<<<<<< HEAD
+=======
+          {/* ✅ chapter ID → 한글 타이틀로 표시 */}
+          <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{chapterDisplayTitle}</span>
+>>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
           <div className="user-tag">👤 {displayName} 님</div>
         </div>
       </nav>

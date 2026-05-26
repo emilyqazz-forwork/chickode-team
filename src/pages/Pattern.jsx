@@ -1,11 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-// 격리시킨 연산 유틸 및 상수 가져오기
 import { PAST_STATS_BASELINE } from '../utils/scoring';
 import { StatSection } from '../components/pattern/StatSection';
 import { usePatternData } from '../hooks/usePatternData';
-
-// CLAUDE_API_KEY 제거 — API 키는 Supabase Edge Function 서버에만 존재 (클라이언트 노출 방지)
 
 export function Pattern({ t }) {
   const navigate = useNavigate();
@@ -29,15 +26,22 @@ export function Pattern({ t }) {
     );
   }
 
-  // 3대 나쁜 습관 탐지 플래그 연산
   const hasTabHabit = stats.tabSwitchIssueRatio >= 0.4;
   const hasTypingHabit = stats.avgSubmits >= 3 && (stats.totalCount > 0 ? (stats.passedCount / stats.totalCount) <= 0.7 : false);
   const hasMouseHabit = stats.highMouseOutRatio >= 0.3;
 
+  // ✅ weakestChapter(숫자 1,2,3 or 문자열)를 "java_basic_c1" 완성형으로 변환
+  const resolveChapterId = (weakest) => {
+    if (!weakest) return 'java_basic_c1';
+    // 이미 완성형 문자열("java_basic_c3")이면 그대로
+    if (typeof weakest === 'string' && weakest.includes('_')) return weakest;
+    // 숫자 또는 숫자 문자열이면 조립
+    return `java_basic_c${weakest}`;
+  };
+
   return (
     <div className="main-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#f5f0e8', color: '#3e2723', padding: '20px 16px', minHeight: '100vh', width: '100vw', boxSizing: 'border-box', overflowY: 'auto' }}>
       
-      {/* 윈도우 컨트롤 바 */}
       <div style={{ width: '100%', maxWidth: '750px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <button type="button" onClick={() => navigate(-1)} style={{ background: '#5d4037', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold' }}>
           ❮ 뒤로가기
@@ -56,17 +60,36 @@ export function Pattern({ t }) {
       ) : (
         <div style={{ width: '100%', maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
           
-          {/* 타이틀 오버뷰 헤더 */}
           <div style={{ textAlign: 'center' }}>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 'bold', margin: '0 0 6px 0' }}>📊 AI 기술 지표 정밀 진단 시스템</h1>
             <p style={{ color: '#8d6e63', margin: 0, fontSize: '0.9rem' }}>내 학습 데이터를 분석해 만든 맞춤 리포트예요</p>
           </div>
 
-          {/* SECTION 1: 다차원 정량 스탯 리포트 */}
           <StatSection stats={stats} />
 
+<<<<<<< HEAD
           {/* SECTION 3: CCTV 로그 기반 3대 나쁜 습관 탐지 정밀 진단 */}
           <div style={{ background: 'white', borderRadius: '20px', padding: '28px 24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+=======
+          <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>⏱️</span> 난이도 비선형 가중치 보정 해결 템포
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', padding: '16px', borderRadius: '14px', border: '1px solid #eee' }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: '#8d6e63', fontWeight: 'bold' }}>과거 대비 인지 템포 가속도</div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 'bold', color: '#e64a19', marginTop: '4px' }}>
+                  {stats.timeGrowthRate > 0 ? `+${stats.timeGrowthRate}% 더 기민해짐` : `${stats.timeGrowthRate}%`}
+                </div>
+              </div>
+              <div style={{ maxWidth: '65%', fontSize: '0.85rem', color: '#5d4037', lineHeight: '1.45', textAlign: 'right' }}>
+                알고리즘 난이도에 따른 인지 과부하 지수 가중치($W_i$)를 수식에 반영하여 시간 데이터를 정규화한 결과입니다. 지난 세션 대비 <strong>불필요한 시간 낭비가 대폭 감쇄</strong>되었습니다.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e0d6c8', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+>>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
             <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>🚨</span> 학습 습관 분석
             </h2>
@@ -74,7 +97,6 @@ export function Pattern({ t }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              {/* 습관 1: Ctrl + Tab 방랑자 */}
               <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid #ffcdd2', background: hasTabHabit ? '#fff8f8' : '#fafafa', opacity: hasTabHabit ? 1 : 0.55, transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: hasTabHabit ? '#c62828' : '#3e2723' }}>
@@ -88,7 +110,11 @@ export function Pattern({ t }) {
                   문제 풀 때 다른 탭으로 이동한 횟수가 많아요. 답을 먼저 찾아보는 습관이 생겼을 수 있어요.
                 </p>
                 {hasTabHabit && (
+<<<<<<< HEAD
                   <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4' }}>
+=======
+                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px', borderLeft: '4px solid #ef5350', fontSize: '0.8rem', color: '#5d4037', lineHeight: '1.4', maxHeight: '80px', overflowY: 'auto' }}>
+>>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
                     💡 <strong>교정 처방:</strong>{" "}
                     {prescriptionsLoading.tab_switch ? (
                       <span style={{ color: '#8d6e63' }}>🐣 병아리 선배가 처방전을 작성하고 있구... 📝</span>
@@ -99,7 +125,6 @@ export function Pattern({ t }) {
                 )}
               </div>
 
-              {/* 습관 2: 급한 성미의 타이핑 폭주족 */}
               <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid #ffe082', background: hasTypingHabit ? '#fffbf0' : '#fafafa', opacity: hasTypingHabit ? 1 : 0.55, transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: hasTypingHabit ? '#b76e00' : '#3e2723' }}>
@@ -124,7 +149,6 @@ export function Pattern({ t }) {
                 )}
               </div>
 
-              {/* 습관 3: 마우스 방황자 */}
               <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid #ffcdd2', background: hasMouseHabit ? '#fff8f8' : '#fafafa', opacity: hasMouseHabit ? 1 : 0.55, transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: hasMouseHabit ? '#c62828' : '#3e2723' }}>
@@ -152,8 +176,13 @@ export function Pattern({ t }) {
             </div>
           </div>
 
+<<<<<<< HEAD
           {/* SECTION 4: 동적 세션 완수도 이정표 카드 가동 */}
           <div style={{ background: '#efebe9', borderRadius: '16px', padding: '28px 24px', border: '1px solid #d7ccc8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
+=======
+          {/* SECTION 4: ✅ weakestChapter 완성형 문자열 변환 후 navigate */}
+          <div style={{ background: '#efebe9', borderRadius: '16px', padding: '20px', border: '1px solid #d7ccc8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
+>>>>>>> 495d3936fa1e856336c5916aca7d84a883d7fa58
             <div style={{ maxWidth: '70%' }}>
               <h3 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 'bold' }}>🎯 오늘 세션 진행률</h3>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#5d4037', lineHeight: '1.45' }}>
@@ -161,9 +190,16 @@ export function Pattern({ t }) {
                 현재 세션 완수 지표: <strong>{stats.passedCount} / {stats.totalCount} 문항 클리어 완료</strong>
               </p>
             </div>
-            <button 
-              className="clay-submit" 
-              onClick={() => navigate('/play', { state: { chapter: stats.weakestChapter, count: 5, ratio: 50, difficulty: '중' } })} 
+            <button
+              className="clay-submit"
+              onClick={() => navigate('/play', {
+                state: {
+                  chapter: resolveChapterId(stats.weakestChapter), // ✅ "java_basic_c1" 형태로 변환
+                  count: 5,
+                  ratio: 50,
+                  difficulty: '기초', // ✅ '중' → '기초' (Quiz.jsx difficultyMap 한글 키와 일치)
+                }
+              })}
               style={{ padding: '10px 16px', background: '#5d4037', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               취약 챕터(Ch.{stats.weakestChapter}) 처방 ⚡
