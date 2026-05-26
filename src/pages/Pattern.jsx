@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PAST_STATS_BASELINE } from '../utils/scoring';
 import { StatSection } from '../components/pattern/StatSection';
 import { usePatternData } from '../hooks/usePatternData';
+import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from '../data/constants';
 
 export function Pattern({ t }) {
   const navigate = useNavigate();
@@ -38,6 +39,56 @@ export function Pattern({ t }) {
     // 숫자 또는 숫자 문자열이면 조립
     return `java_basic_c${weakest}`;
   };
+
+  // ── Section 4 취약 언어 + 챕터 분석 로직 ──
+  // useNoteData의 parseUnit과 동일한 구조로 unit 코드 파싱
+  const parseUnitLocal = (unit = '') => {
+    const match = unit.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/);
+    if (!match) return { lang: null, chapterId: null };
+    const lang = match[1];
+    const level = match[2];
+    const chapterId = `${lang}_${level}_${match[3]}`;
+    return { lang, chapterId };
+  };
+
+  const LANG_LABEL = { java: 'Java', py: 'Python', c: 'C언어' };
+
+  // attempts에서 오답(is_correct === false)만 필터
+  const wrongAttempts = attempts.filter(a => a.is_correct === false);
+
+  // 언어별 / 챕터별 오답 횟수 집계
+  const langCount = {};
+  const chapterCount = {};
+  wrongAttempts.forEach(a => {
+    const { lang, chapterId } = parseUnitLocal(a.unit || '');
+    if (!lang) return;
+    langCount[lang] = (langCount[lang] || 0) + 1;
+    if (chapterId) chapterCount[chapterId] = (chapterCount[chapterId] || 0) + 1;
+  });
+
+  // 가장 취약한 언어 / 챕터 추출
+  const weakestLang = Object.entries(langCount).sort((a, b) => b[1] - a[1])[0];
+  const weakestChapterEntry = Object.entries(chapterCount).sort((a, b) => b[1] - a[1])[0];
+  const weakestLangKey = weakestLang?.[0];
+  const weakestChapterId = weakestChapterEntry?.[0];
+  const weakestChapterCount = weakestChapterEntry?.[1];
+  // 챕터 번호 숫자만 추출 (예: java_basic_c3 → 3)
+  const chapterNum = weakestChapterId?.match(/c(\d+)$/)?.[1] ?? '?';
+  const getChapterTitle = (chapterId) => {
+    if (!chapterId) return '';
+    const match = chapterId.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/);
+    if (!match) return '';
+    const [, lang, level, ] = match;
+    const map = { java: JAVA_CHAPTERS, py: PYTHON_CHAPTERS, c: C_CHAPTERS };
+    const chapters = map[lang]?.[level] || [];
+    const found = chapters.find(ch => ch.id === chapterId);
+    // "Ch.1 : 변수와 자료형" 형태에서 콜론 뒤 단원명만 추출
+    return found?.title?.split(':')?.[1]?.trim() || '';
+  };
+
+  const chapterTitle = getChapterTitle(weakestChapterId);
+  const LEVEL_LABEL = { basic: '기초', mid: '중급', adv: '고급' };
+  const weakestLevel = weakestChapterId?.match(/^(?:java|py|c)_(basic|mid|adv)/)?.[1] ?? null;
 
   return (
     <div className="main-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#f5f0e8', color: '#3e2723', padding: '20px 16px', minHeight: '100vh', width: '100vw', boxSizing: 'border-box', overflowY: 'auto' }}>
@@ -151,29 +202,54 @@ export function Pattern({ t }) {
             </div>
           </div>
 
-          {/* SECTION 4: 동적 세션 완수도 이정표 카드 가동 */}
-          <div style={{ background: '#efebe9', borderRadius: '16px', padding: '28px 24px', border: '1px solid #d7ccc8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
-            <div style={{ maxWidth: '70%' }}>
-              <h3 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 'bold' }}>🎯 오늘 세션 진행률</h3>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#5d4037', lineHeight: '1.45' }}>
-                이번 세션 목표 문항 기준이에요. <br />
-                현재 세션 완수 지표: <strong>{stats.passedCount} / {stats.totalCount} 문항 클리어 완료</strong>
+          {/* SECTION 4: 동적 세션 완수도 이정표 카드 가동 → 취약 언어 + 챕터 AI 분석으로 교체 */}
+          <div style={{ background: '#efebe9', borderRadius: '16px', padding: '28px 24px', border: '1px solid #d7ccc8', boxShadow: '0 4px 10px rgba(0,0,0,0.02)' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', fontWeight: 'bold' }}>🎯 취약 언어 · 챕터 정밀 분석</h3>
+            <p style={{ fontSize: '0.8rem', color: '#8d6e63', margin: '0 0 16px 0' }}>오답 패턴과 학습 습관을 연결한 병아리 선배의 진단이에요</p>
+
+            {wrongAttempts.length === 0 ? (
+              <p style={{ color: '#8d6e63', fontSize: '0.9rem', textAlign: 'center' }}>
+                아직 오답 데이터가 없어요! 문제를 풀면 취약 분석이 시작돼요 🐥
               </p>
-            </div>
-            <button
-              className="clay-submit"
-              onClick={() => navigate('/play', {
-                state: {
-                  chapter: resolveChapterId(stats.weakestChapter), // ✅ "java_basic_c1" 형태로 변환
-                  count: 5,
-                  ratio: 50,
-                  difficulty: '기초', // ✅ '중' → '기초' (Quiz.jsx difficultyMap 한글 키와 일치)
-                }
-              })}
-              style={{ padding: '10px 16px', background: '#5d4037', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              취약 챕터(Ch.{stats.weakestChapter}) 처방 ⚡
-            </button>
+            ) : (
+              <>
+                {/* Claude 분석 텍스트 */}
+                <div style={{ padding: '14px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #c62828', fontSize: '0.85rem', color: '#3e2723', lineHeight: '1.7', marginBottom: '20px' }}>
+                  {prescriptionsLoading.weakness_analysis ? (
+                    <span style={{ color: '#8d6e63', fontStyle: 'italic' }}>🐣 병아리 선배가 오답 데이터를 들여다보며 취약 패턴을 분석하고 있구... 📝</span>
+                  ) : (
+                    <span dangerouslySetInnerHTML={{ __html: prescriptions.weakness_analysis || "데이터 분석 중이구..." }} />
+                  )}
+                </div>
+
+                {/* 가장 취약한 챕터 + 처방 버튼 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '0.82rem', color: '#5d4037' }}>가장 취약한 챕터</p>
+                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '0.95rem', color: '#c62828' }}>
+                      {LANG_LABEL[weakestLangKey]} · {LEVEL_LABEL[weakestLevel]} · Ch.{chapterNum}{chapterTitle ? ` · ${chapterTitle}` : ''}
+                      <span style={{ fontWeight: 'normal', fontSize: '0.8rem', color: '#8d6e63', marginLeft: '8px' }}>
+                        ({weakestChapterCount}회 오답)
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    className="clay-submit"
+                    onClick={() => navigate('/play', {
+                      state: {
+                        chapter: weakestChapterId || resolveChapterId(stats.weakestChapter),
+                        count: 5,
+                        ratio: 50,
+                        difficulty: '기초',
+                      }
+                    })}
+                    style={{ padding: '10px 16px', background: '#c62828', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    취약 챕터 처방 ⚡
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
         </div>
