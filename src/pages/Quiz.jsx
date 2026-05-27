@@ -111,7 +111,7 @@ export function Quiz({ t, params }) {
   const [studySeconds, setStudySeconds] = useState(0);
   const [isEditorTyping, setIsEditorTyping] = useState(false);
   const [resultStatus, setResultStatus] = useState(t('quiz_result_wait'));
-  const [resultColor, setResultColor] = useState('#d4d4d4');
+  const [resultColor, setResultColor] = useState('#000000');
   const [docHidden, setDocHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   const [mouseInsideDoc, setMouseInsideDoc] = useState(true);
   const [cctvResultTone, setCctvResultTone] = useState(null);
@@ -286,7 +286,7 @@ export function Quiz({ t, params }) {
     
     setTermOutput([{ type: 'system', text: '> Chickode IDE Console v1.0.0' }, { type: 'system', text: '> Ready for compilation...' }]);
     setResultStatus(t('quiz_result_wait'));
-    setResultColor('#d4d4d4');
+    setResultColor('#000000');
     
     setTabSwitchCount(0);
     setMouseOutCount(0);
@@ -504,7 +504,7 @@ export function Quiz({ t, params }) {
         setIsSubmitted(false);
         setCodeValue(currentProblem.template || '');
         setResultStatus(t('quiz_result_wait'));
-        setResultColor('#d4d4d4');
+        setResultColor('#000000');
         setTermOutput([
           { type: 'system', text: '> Chickode IDE Console v1.0.0' },
           { type: 'system', text: '> Ready for compilation...' },
