@@ -12,16 +12,43 @@ export function Pattern({ t }) {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f0e8', color: '#5d4037', fontFamily: 'sans-serif' }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        background: '#f5f0e8', color: '#3e2723',
+        padding: '20px 16px', minHeight: '100vh',
+        width: '100vw', boxSizing: 'border-box',
+        overflowY: 'auto', fontFamily: 'sans-serif'
+      }}>
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
         `}} />
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2.5rem', animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>⏳</div>
-          <p style={{ marginTop: '16px', fontWeight: 'bold', fontSize: '1.05rem' }}>Supabase 안전 데이터 인지 엔진 연동 중...</p>
+
+        {/* 상단 버튼 행 — 본 페이지와 동일 */}
+        <div style={{ width: '100%', maxWidth: '750px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{ background: '#5d4037', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            ❮ 뒤로가기
+          </button>
+          <span style={{ fontSize: '0.85rem', color: '#8d6e63', fontWeight: 'bold', border: '1px solid #d7ccc8', padding: '4px 8px', borderRadius: '6px', background: 'white' }}>
+            🔌 Supabase Cloud Live
+          </span>
+        </div>
+
+        {/* 로딩 메시지 */}
+        <div style={{ marginTop: '120px', textAlign: 'center' }}>
+          <div style={{ fontSize: '2.5rem', animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>🐣</div>
+          <p style={{ marginTop: '16px', fontWeight: 'bold', fontSize: '1.05rem', color: '#3e2723' }}>
+            병아리 선배가 학습 지표 가져오는 중...
+          </p>
+          <p style={{ marginTop: '6px', fontSize: '0.85rem', color: '#8d6e63' }}>
+            잠깐만 기다려봐 삐약!
+          </p>
         </div>
       </div>
     );

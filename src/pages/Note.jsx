@@ -211,10 +211,44 @@ export function Note({ t }) {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f0e8', color: '#5d4037' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2.5rem' }}>⏳</div>
-          <p style={{ marginTop: '16px', fontWeight: 'bold' }}>오답 데이터 불러오는 중...</p>
+      <div style={{
+        position: 'fixed', top: 0, left: 0,
+        width: '100vw', height: '100vh',
+        background: '#f5f0e8',
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        fontFamily: 'sans-serif', zIndex: 10
+      }}>
+        {/* 상단 네비 — 본 페이지와 동일 */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          background: '#3e2723', padding: '12px 24px',
+          display: 'flex', alignItems: 'center', gap: '16px'
+        }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{
+              background: 'rgba(255,255,255,0.15)', color: 'white',
+              border: 'none', borderRadius: '8px',
+              padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold'
+            }}
+          >
+            ❮ 뒤로가기
+          </button>
+          <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>
+            CHICKODE: 오답노트
+          </span>
+        </div>
+
+        {/* 로딩 메시지 */}
+        <div style={{ textAlign: 'center', color: '#5d4037' }}>
+          <div style={{ fontSize: '2.5rem' }}>🐣</div>
+          <p style={{ marginTop: '16px', fontWeight: 'bold', fontSize: '1rem' }}>
+            오답 데이터 불러오고 있어...
+          </p>
+          <p style={{ marginTop: '6px', fontSize: '0.85rem', color: '#8d6e63' }}>
+            잠깐만 기다려봐 삐약!
+          </p>
         </div>
       </div>
     );
