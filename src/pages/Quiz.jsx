@@ -32,6 +32,31 @@ function getDisplayNameFromAuthUser(user) {
   return meta.username || meta.nickname || user.email?.split('@')[0] || getProfile().name;
 }
 
+/* ── 공통 Nav 바 ── */
+function QuizNav({ navigate, mustSolve, chapterDisplayTitle, displayName }) {
+  return (
+    <div style={{ background: '#3e2723', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', width: '100%' }}>
+      <button type="button" onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold' }}>
+        ❮ 뒤로가기
+      </button>
+      <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>CHICKODE: 문제풀기</span>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {mustSolve && (
+          <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(252,129,129,0.4)', color: '#fc8181', background: 'rgba(252,129,129,0.07)' }}>
+            🔒 오답노트 모드
+          </span>
+        )}
+        {chapterDisplayTitle && (
+          <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.07)' }}>
+            {chapterDisplayTitle}
+          </span>
+        )}
+        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>👤 {displayName} 님</span>
+      </div>
+    </div>
+  );
+}
+
 export function Quiz({ t, params }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -104,6 +129,9 @@ export function Quiz({ t, params }) {
   const focusScoresRef = useRef([]);
   const [displayName, setDisplayName] = useState(() => getProfile().name);
 
+  // ✅ 추가: 이번 세션에서 틀린 문제 ID 수집용
+  const [wrongProblemIds, setWrongProblemIds] = useState([]);
+
   useEffect(() => {
     const fetchDisplayName = async (user) => {
       if (!user) {
@@ -139,9 +167,29 @@ export function Quiz({ t, params }) {
 
   useEffect(() => {
     async function fetchProblemsFromSupabase() {
-      const { count, chapter, difficulty, problemId } = settings;
+      const { count, chapter, difficulty, problemId, wrongIds } = settings;
 
       try {
+        // ✅ 추가: wrongIds가 있으면 해당 문제들만 Supabase에서 조회
+        if (wrongIds && wrongIds.length > 0) {
+          const { data, error } = await supabase
+            .from('problems')
+            .select('*')
+            .in('id', wrongIds);
+          if (error) throw error;
+          setQuizList((data || []).map(p => ({
+            ...p,
+            title: p.title || '코딩 문제',
+            desc: p.description || '',
+            type: p.type || 'coding',
+            difficulty: p.code_level === 1 ? '기초' : p.code_level === 5 ? '고급' : '중급',
+            template: p.template_code ? p.template_code.split('\\n').join('\n') : `public class Main { ... }`,
+            answer: p.answer || '',
+            expectedExample: p.expected_example || p.answer || ''
+          })));
+          return;
+        }
+
         if (problemId) {
           const { data, error } = await supabase
             .from('problems')
@@ -468,7 +516,8 @@ export function Quiz({ t, params }) {
         setCurrentIndex((prev) => prev + 1);
         setIsSubmitted(false); 
       } else {
-        navigate('/result', { state: { total: totalGoalCount, correct: correctCount } });
+        // ✅ 수정: wrongProblemIds도 함께 전달
+        navigate('/result', { state: { total: totalGoalCount, correct: correctCount, wrongIds: wrongProblemIds } });
       }
       return;
     }
@@ -567,17 +616,41 @@ export function Quiz({ t, params }) {
         setChatHistory((prev) => [...prev, { role: 'bot', text: '아쉽지만 오답이야... 다음 번엔 맞출 수 있을 거야! 🐥' }]);
         setIsChatOpen(true);
         setCctvResultTone('wrong');
+        // ✅ 추가: 오답 문제 ID 수집
+        setWrongProblemIds(prev => [...prev, currentProblem.id]);
         if (!mustSolve) triggerAiProblemGeneration();
       }
     }, 500);
   };
 
+  /* ── 챕터 타이틀 ── */
+  const chapterDisplayTitle = (() => {
+    const ch = settings.chapter;
+    if (!ch) return '';
+    const allChapters = [
+      ...Object.values(JAVA_CHAPTERS).flat(),
+      ...Object.values(PYTHON_CHAPTERS).flat(),
+      ...Object.values(C_CHAPTERS).flat(),
+    ];
+    const found = allChapters.find(c => c.id === String(ch));
+    return found ? found.title : String(ch);
+  })();
+
+  /* ── 로딩 화면 ── */
   if (!quizList || quizList.length === 0) {
     return (
-      <div className="coding-view" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-        <div style={{ fontSize: '2rem' }}>🐥</div>
-        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>문제를 가져오는 중!! 삐약...</div>
-        <div style={{ fontSize: '13px', color: '#bcaaa4' }}>조금만 더 기다려줘.</div>
+      <div className="coding-view" style={{ display: 'flex', flexDirection: 'column' }}>
+        <QuizNav
+          navigate={navigate}
+          mustSolve={mustSolve}
+          chapterDisplayTitle={chapterDisplayTitle}
+          displayName={displayName}
+        />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+          <div style={{ fontSize: '2rem' }}>🐥</div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>문제를 가져오는 중!! 삐약...</div>
+          <div style={{ fontSize: '13px', color: '#bcaaa4' }}>조금만 더 기다려줘.</div>
+        </div>
       </div>
     );
   }
@@ -611,19 +684,6 @@ export function Quiz({ t, params }) {
         ? 'quiz-reaction-chick-wrap--typing'
         : 'quiz-reaction-chick-wrap--float',
   ].join(' ');
-
-  const chapterDisplayTitle = (() => {
-    const ch = settings.chapter;
-    if (!ch) return '알 수 없는 단원';
-    const allChapters = [
-      ...Object.values(JAVA_CHAPTERS).flat(),
-      ...Object.values(PYTHON_CHAPTERS).flat(),
-      ...Object.values(C_CHAPTERS).flat(),
-    ];
-    const found = allChapters.find(c => c.id === String(ch));
-    if (found) return found.title;
-    return String(ch);
-  })();
 
   const centerColumn = (
     <div className="center" onPointerDownCapture={() => { if (!isChatOpen) bumpActivity(); }}>
@@ -686,7 +746,7 @@ export function Quiz({ t, params }) {
       )}
       <div className="terminal-container">
         <div className="terminal-header">
-          <span>Terminal</span>
+          <span>Console</span>
           <span style={{ color: resultColor }}>{resultStatus}</span>
         </div>
         <div className="terminal-output">
@@ -715,24 +775,12 @@ export function Quiz({ t, params }) {
 
   return (
     <div className="coding-view" style={{ display: 'flex' }}>
-      <div style={{ background: '#3e2723', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', width: '100%' }}>
-        <button type="button" onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold' }}>
-          ❮ 뒤로가기
-        </button>
-        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>CHICKODE: 문제풀기</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {mustSolve && (
-            <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(252,129,129,0.4)', color: '#fc8181', background: 'rgba(252,129,129,0.07)' }}>
-              🔒 오답노트 모드
-            </span>
-          )}
-          <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.07)' }}>
-            {chapterDisplayTitle}
-          </span>
-          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>👤 {displayName} 님</span>
-        </div>
-      </div>
-
+      <QuizNav
+        navigate={navigate}
+        mustSolve={mustSolve}
+        chapterDisplayTitle={chapterDisplayTitle}
+        displayName={displayName}
+      />
 
       <main className={`content${isChatOpen ? '' : ' content--quiz-chat-collapsed'}`}>
         <div className="left">
