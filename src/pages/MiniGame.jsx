@@ -8,8 +8,8 @@ const GAMES = [
   {
     id: 'jump',
     emoji: '🐥',
-    title: '자바 퀴즈 러너',
-    desc: '장애물을 피하며 자바 퀴즈 풀기!',
+    title: '코딩 퀴즈 러너',
+    desc: '장애물을 피하며 코딩 퀴즈 풀기!',
     ready: true,
   },
   {
