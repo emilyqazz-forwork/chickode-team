@@ -746,7 +746,7 @@ export function Quiz({ t, params }) {
       )}
       <div className="terminal-container">
         <div className="terminal-header">
-          <span>Console</span>
+          <span style={{ color: '#000000' }}>Console</span>
           <span style={{ color: resultColor }}>{resultStatus}</span>
         </div>
         <div className="terminal-output">
