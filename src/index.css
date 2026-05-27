@@ -1,11 +1,11 @@
 /*메인.학습 인터페이스 구현,AI채팅 레이아웃,오답노트 및 퀴즈 시각화*/
 
-@import url('https://fonts.googleapis.com/css2?family=Sunflower:wght@700&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: sans-serif !important;
 }
 
 body, html {
