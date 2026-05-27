@@ -574,20 +574,10 @@ export function Quiz({ t, params }) {
 
   if (!quizList || quizList.length === 0) {
     return (
-      <div className="coding-view" style={{ display: 'flex', flexDirection: 'column' }}>
-        <nav className="top-nav">
-          <button id="backToMain" title="돌아가기" onClick={() => navigate(-1)}>❮</button>
-          <div className="logo">CHICKODE</div>
-          <div className="top-right-group">
-            <div className="user-tag">👤 {displayName} 님</div>
-          </div>
-        </nav>
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
-          <div style={{ fontSize: '2rem' }}>🐥</div>
-          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>문제를 가져오는 중!! 삐약...</div>
-          <div style={{ fontSize: '13px', color: '#bcaaa4' }}>조금만 더 기다려줘.</div>
-        </div>
+      <div className="coding-view" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ fontSize: '2rem' }}>🐥</div>
+        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>문제를 가져오는 중!! 삐약...</div>
+        <div style={{ fontSize: '13px', color: '#bcaaa4' }}>조금만 더 기다려줘.</div>
       </div>
     );
   }
@@ -725,19 +715,25 @@ export function Quiz({ t, params }) {
 
   return (
     <div className="coding-view" style={{ display: 'flex' }}>
-      <nav className="top-nav">
-        <button id="backToMain" title="돌아가기" onClick={() => navigate(-1)}>❮</button>
-        <div className="logo">CHICKODE</div>
-        <div className="top-right-group">
+      <div style={{ background: '#3e2723', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', width: '100%' }}>
+        <button type="button" onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontWeight: 'bold' }}>
+          ❮ 뒤로가기
+        </button>
+        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>CHICKODE: 문제풀기</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {mustSolve && (
-            <span className="chapter-badge" style={{ background: '#ef5350', color: 'white', fontFamily: "'Jua', sans-serif" }}>
+            <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(252,129,129,0.4)', color: '#fc8181', background: 'rgba(252,129,129,0.07)' }}>
               🔒 오답노트 모드
             </span>
           )}
-          <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{chapterDisplayTitle}</span>
-          <div className="user-tag">👤 {displayName} 님</div>
+          <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.07)' }}>
+            {chapterDisplayTitle}
+          </span>
+          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>👤 {displayName} 님</span>
         </div>
-      </nav>
+      </div>
+
+
       <main className={`content${isChatOpen ? '' : ' content--quiz-chat-collapsed'}`}>
         <div className="left">
           <div className="problem-card">
