@@ -105,10 +105,30 @@ export function Quiz({ t, params }) {
   const [displayName, setDisplayName] = useState(() => getProfile().name);
 
   useEffect(() => {
-    const sync = (user) => setDisplayName(getDisplayNameFromAuthUser(user));
-    supabase.auth.getSession().then(({ data: { session } }) => sync(session?.user ?? null));
+    const fetchDisplayName = async (user) => {
+      if (!user) {
+        setDisplayName(getProfile().name);
+        return;
+      }
+
+      // profiles 테이블에서 display_name 조회
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && data?.display_name) {
+        setDisplayName(data.display_name);
+      } else {
+        // profiles에 없으면 기존 방식으로 폴백
+        setDisplayName(getDisplayNameFromAuthUser(user));
+      }
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => fetchDisplayName(session?.user ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      sync(session?.user ?? null);
+      fetchDisplayName(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -554,9 +574,20 @@ export function Quiz({ t, params }) {
 
   if (!quizList || quizList.length === 0) {
     return (
-      <div style={{ color: 'white', padding: '50px', background: '#2d1a12', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
-        <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Supabase로부터 문제를 가져오는 중입니다 삐약... 🐥</div>
-        <div style={{ fontSize: '14px', color: '#bcaaa4' }}>만약 화면이 넘어가질 않는다면 단원에 맞는 문제가 DB에 등록되어 있는지 확인해 주세요!</div>
+      <div className="coding-view" style={{ display: 'flex', flexDirection: 'column' }}>
+        <nav className="top-nav">
+          <button id="backToMain" title="돌아가기" onClick={() => navigate(-1)}>❮</button>
+          <div className="logo">CHICKODE</div>
+          <div className="top-right-group">
+            <div className="user-tag">👤 {displayName} 님</div>
+          </div>
+        </nav>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
+          <div style={{ fontSize: '2rem' }}>🐥</div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>문제를 가져오는 중!! 삐약...</div>
+          <div style={{ fontSize: '13px', color: '#bcaaa4' }}>조금만 더 기다려줘.</div>
+        </div>
       </div>
     );
   }
