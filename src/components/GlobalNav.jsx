@@ -275,6 +275,14 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
           background: rgba(255, 255, 255, 0.12);
           color: #fff;
         }
+
+        .top-control-layer {
+          position: fixed;
+          top: 12px;
+          right: 20px;
+          z-index: 1050;
+          max-width: 28vw;
+        }
       `}</style>
 
       {/* 상단 호버 감지 투명 띠 - 햄버거 버튼을 대체하는 트리거 영역 */}
@@ -332,7 +340,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
 
               /* ── 최상위 우측 컨트롤 래퍼: 화면 너비의 38% 이상은 차지 못하게 제한 ── */
               .top-right-controls {
-                max-width: min(340px, 38vw);
+                max-width: min(280px, 28vw);
               }
 
               /* ── 설정 + 프로필 가로 행 ── */
