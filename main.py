@@ -14,24 +14,26 @@ load_dotenv()
 
 app = FastAPI()
 
-# CORS 설정: 프론트엔드(5173 포트 등)와의 자유로운 비동기 통신 허용
+# CORS 설정: 프론트엔드 도메인 명시
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://chickode.netlify.app"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # 환경 변수 로드
 CLAUDE_API_KEY = os.getenv("CHICKODE_CLAUDE_API_KEY")
-USERS_FILE = "users.json"
 
-# Anthropic 클라이언트 초기화
+if not CLAUDE_API_KEY:
+    print("🚨 ERROR: CHICKODE_CLAUDE_API_KEY가 로드되지 않았습니다!")
+else:
+    print(f"✅ SUCCESS: API Key가 로드되었습니다. (길이: {len(CLAUDE_API_KEY)})")
+
 client = Anthropic(api_key=CLAUDE_API_KEY)
-
-# --- 모델 설정 ---
-# 최신 비동기 통신 모델 지정
-CLAUDE_MODEL = "claude-3-5-sonnet-20241022" 
+CLAUDE_MODEL = "claude-sonnet-4-6"
+USERS_FILE = "users.json"
 
 # --- 유저 저장소 로직 ---
 def load_users():
@@ -46,134 +48,81 @@ def save_users(users):
 def hash_password(pw: str) -> str:
     return hashlib.sha256(pw.encode()).hexdigest()
 
-# --- 요청 모델 정의 ---
-class HintRequest(BaseModel):
-    user_code: str
-    problem_context: str
-
-class HistoryItem(BaseModel):
-    role: str
-    text: str
-
+# --- [중요] 요청 모델 정의 (함수들보다 위에 위치해야 함) ---
 class ChatRequest(BaseModel):
     user_question: str
     user_code: str
     problem_context: str
-    history: Optional[List[HistoryItem]] = []
+    history: Optional[List[dict]] = []
 
-# 📝 AI 문제 자동 생성 전용 요청 바디 모델 정의
 class GenerationRequest(BaseModel):
-    user_id: Optional[str] = None
-    chapter_title: str                  # 예: "제어문과 반복문"
-    difficulty: str                     # '기초', '중급', '고급'
-    recent_wrong_concepts: List[str]    # 취약 지표 기반 핵심 키워드 목록 (예: ['while', 'break'])
+    chapter_title: str
+    difficulty: str
+    recent_wrong_concepts: List[str]
 
 # --- API 엔드포인트 ---
-
 @app.post("/chat")
 async def chat_with_ai(request: ChatRequest):
-    print(f"DEBUG: API Key Loaded: {CLAUDE_API_KEY is not None}")
-    print(f"DEBUG: Request Data: {request}")
+    if not CLAUDE_API_KEY:
+        raise HTTPException(status_code=500, detail="서버에 AI API Key가 설정되지 않았습니다.")
+        
     try:
-        history_str = "\n".join([f"{h.role}: {h.text}" for h in request.history])
+        history_str = "\n".join([f"{h.get('role', 'user')}: {h.get('text', '')}" for h in request.history])
         
-        system_prompt = (
-            "너는 '병아리 선배' 코딩 멘토야. "
-            "사용자에게 친근한 반말을 사용하고 문장 끝에 '삐약!'을 붙여. "
-            "정답 코드를 직접 주지 말고, 논리적 사고를 유도하는 힌트 위주로 두 문장 이내로 답변해."
-        )
+        system_prompt = "너는 '병아리 선배' 코딩 멘토야. 친근한 반말을 사용하고 '삐약!'을 붙여. 정답 코드를 직접 주지 말고, 논리적 사고를 유도하는 힌트 위주로 답변해."
         
-        user_prompt = f"""
-        [문제 맥락] {request.problem_context}
-        [사용자 코드] {request.user_code}
-        [대화 기록] {history_str}
-        [질문] {request.user_question}
-        """
-
         response = await asyncio.to_thread(
             client.messages.create,
             model=CLAUDE_MODEL,
             max_tokens=500,
             system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}]
+            messages=[{"role": "user", "content": f"[맥락]{request.problem_context}\n[코드]{request.user_code}\n[기록]{history_str}\n[질문]{request.user_question}"}]
         )
-        
         return {"answer": response.content[0].text}
     except Exception as e:
+        print(f"DEBUG: Chat API Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# 🎯 [신규 엔드포인트 추가] 개인 맞춤형 AI 보충 문제 실시간 생성 API
 @app.post("/generate-problem")
 async def generate_problem(request: GenerationRequest):
-    print(f"DEBUG: API Key Loaded: {CLAUDE_API_KEY is not None}")
-    print(f"DEBUG: Problem Generation Request: {request}")
+    if not CLAUDE_API_KEY:
+        raise HTTPException(status_code=500, detail="서버에 AI API Key가 설정되지 않았습니다.")
+        
     try:
-        # Claude의 출력 포맷을 JSON 데이터 구조로 한정 
-        system_instruction = (
-            "당신은 오직 요구된 교육용 JSON 데이터 구조만 정확하게 출력하는 백엔드 프로그램 엔진입니다. "
-            "마크다운(```json)이나 다른 인사말, 주석 텍스트를 절대로 응답에 포함하지 마십시오."
-        )
-
-        prompt = f"""
-        당신은 코딩 교육 플랫폼 'Chickode'의 인공지능 튜터 '병아리 선배'입니다.
-        아래 조건에 완벽히 부합하는 초보자 맞춤형 Java 코딩 문제를 생성해 주세요.
-
-        [조건]
-        1. 대단원: {request.chapter_title}
-        2. 난이도: {request.difficulty}
-        3. 학습자 취약 개념 (코드 요구사항 및 템플릿에 적극 반영할 것): {', '.join(request.recent_wrong_concepts)}
-        4. 문제 유형: 'coding' (에디터 타이핑 작성형)
-
-        [출력 규격]
-        반드시 JSON 형식으로만 응답해야 하며, 다음 키(Key)를 정확히 포함해야 합니다:
-        - title: 문제의 제목 (짧고 명료하게)
-        - description: 초보자가 쉽게 이해할 수 있는 친절하고 구체적인 문제 설명 (병아리 선배의 '~삐약' 체를 적절히 섞을 것)
-        - template_code: 에디터에 주입될 초기 Java 코드 구조 (개행은 \\n 문자열로 표현)
-        - answer: 채점 시 사용자가 반드시 작성해야 할 정답 소스코드 구문 (공백 제외 매칭용)
-        - keywords: 채점 시 코드 내 필수 포함 여부를 확인할 핵심 예약어/메서드 배열 (예: ["while", "break"])
-        - code_level: 코드 작성량에 따른 난이도 수치 (1, 3, 5 중 하나 선택)
-
-        출력은 다른 텍스트 설명 없이 오직 완성된 하나의 JSON 문자열만 반환해야 합니다.
-        """
-
-        # 비동기 처리를 위해 asyncio.to_thread 적용하여 성능 부하 관리
+        system_instruction = "응답은 무조건 JSON 형식만 출력해. 마크다운 기호(```json)를 포함하지 마."
+        prompt = f"Chickode 튜터로서 Java 코딩 문제를 생성해. 주제: {request.chapter_title}, 난이도: {request.difficulty}, 취약 개념: {', '.join(request.recent_wrong_concepts)}. JSON 구조: title, description, template_code, answer, keywords, code_level"
+        
         response = await asyncio.to_thread(
             client.messages.create,
             model=CLAUDE_MODEL,
             max_tokens=1500,
-            temperature=0.5,
             system=system_instruction,
             messages=[{"role": "user", "content": prompt}]
         )
-
-        response_text = response.content[0].text.strip()
-        print(f"DEBUG: Raw Claude Response: {response_text}")
-
-        # 만약 Claude가 마크다운 포맷(```json ... ```)을 우회 적용하여 출력했을 시 파싱 안전 방어막 가동
-        if response_text.startswith("```"):
-            response_text = response_text.split("```json")[-1].split("```")[0].strip()
-
-        problem_data = json.loads(response_text)
         
-        # Supabase의 problems 테이블 및 프론트엔드 quizList 데이터 매핑 규격에 정확히 동기화하여 가공 반환
+        text = response.content[0].text.strip()
+        if "```" in text:
+            text = text.replace("```json", "").replace("```", "").strip()
+            
+        problem_data = json.loads(text)
+        
         return {
-            "title": problem_data.get("title", "AI 보충 도전 문제"),
-            "description": problem_data.get("description", "제시된 요구 사항에 맞추어 코드를 구현해봐 삐약!"),
+            "title": problem_data.get("title"),
+            "description": problem_data.get("description"),
             "type": "coding",
             "difficulty": request.difficulty,
             "code_level": int(problem_data.get("code_level", 3)),
-            "template": problem_data.get("template_code", "public class Main {\n    public static void main(String[] args) {\n        // 코드를 작성하세요\n    }\n}"),
-            "answer": problem_data.get("answer", ""),
+            "template": problem_data.get("template_code"),
+            "answer": problem_data.get("answer"),
             "keywords": problem_data.get("keywords", []),
             "unit": "ai_dynamic_challenge"
         }
-
     except Exception as e:
-        print("AI 문제 생성 오류:", str(e))
-        raise HTTPException(status_code=500, detail=f"AI가 문제를 조립하는 도중 알 수 없는 에러가 발생했습니다: {str(e)}")
+        print(f"DEBUG: Generation API Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/register")
-async def register(req: dict): 
+async def register(req: dict):
     users = load_users()
     if req["username"] in users: return {"success": False, "message": "이미 존재하는 아이디야 삐약!"}
     users[req["username"]] = {"password": hash_password(req["password"]), "nickname": req["nickname"]}
@@ -189,4 +138,5 @@ async def login(req: dict):
     return {"success": True, "nickname": user["nickname"]}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

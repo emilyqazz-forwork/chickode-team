@@ -10,7 +10,6 @@ import { java } from '@codemirror/lang-java';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { python } from '@codemirror/lang-python';
 import { cpp } from '@codemirror/lang-cpp';
-// ✅ 추가: 챕터 한글 타이틀 조회용
 import { JAVA_CHAPTERS, PYTHON_CHAPTERS, C_CHAPTERS } from '../data/constants';
 
 import {
@@ -26,17 +25,6 @@ import {
   readStoredPersona,
   CCTVCamChickImageStyle
 } from '../data/cctvConstants';
-
-const generateVirtualSessionId = () => {
-  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
-    return window.crypto.randomUUID();
-  }
-  return 'session-xxxx-4xxx-yxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
 
 function getDisplayNameFromAuthUser(user) {
   if (!user) return getProfile().name;
@@ -57,8 +45,6 @@ export function Quiz({ t, params }) {
   };
 
   const mustSolve = settings.mustSolve || false;
-
-  const [virtualSessionId] = useState(() => generateVirtualSessionId());
 
   const [persona, setPersona] = useState(() => readStoredPersona(params?.persona));
   const tutorPersona = getTutorPersona(persona);
@@ -256,7 +242,6 @@ export function Quiz({ t, params }) {
     
     const timerId = setInterval(() => {
       setStudySeconds((s) => s + 1);
-
       const now = Date.now();
       if (currentProblem) {
         const { k } = computeCctvChecks({
@@ -279,8 +264,8 @@ export function Quiz({ t, params }) {
       const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
       const userId = userPayload.id || null;
 
+      // ✅ session_id 제거
       const payload = {
-        session_id: virtualSessionId,
         problem_id: currentProblem.id,
         user_id: userId,
         elapsed_time: bufferSeconds,
@@ -305,7 +290,7 @@ export function Quiz({ t, params }) {
       clearInterval(timerId);
       clearInterval(streamId);
     };
-  }, [quizList.length, currentIndex, docHidden, mouseInsideDoc, isEditorTyping, virtualSessionId]);
+  }, [quizList.length, currentIndex, docHidden, mouseInsideDoc, isEditorTyping]);
 
   useEffect(() => {
     const onVis = () => {
@@ -385,7 +370,7 @@ export function Quiz({ t, params }) {
     setChatHistory((prev) => [...prev, { role: 'user', text }, { role: 'bot', text: '생각 중이야 삐약... 🐥', thinking: true }]);
     
     try {
-      const response = await fetch('http://127.0.0.1:8000/chat', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -417,7 +402,7 @@ export function Quiz({ t, params }) {
       const currentProblem = quizList[currentIndex];
       const currentChapterObj = settings.chapter || { title: "Java 기초" };
       
-      const response = await fetch('http://127.0.0.1:8000/generate-problem', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate-problem`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -502,10 +487,10 @@ export function Quiz({ t, params }) {
       const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
       const userId = userPayload.id || null; 
 
+      // ✅ session_id 제거
       const { error } = await supabase.from('submissions').insert([{
         user_id: userId,
         problem_id: currentProblem.id,
-        session_id: virtualSessionId,
         unit: currentProblem.unit || String(settings.chapter),
         unit_level: settings.difficulty || '기초',
         code_level: currentProblem.code_level || 3,
@@ -606,21 +591,17 @@ export function Quiz({ t, params }) {
         : 'quiz-reaction-chick-wrap--float',
   ].join(' ');
 
-  // ✅ 수정: chapter ID로 constants에서 한글 타이틀 찾기
   const chapterDisplayTitle = (() => {
     const ch = settings.chapter;
     if (!ch) return '알 수 없는 단원';
-
-    // 모든 언어/난이도 챕터를 통합해서 id로 한글 타이틀 검색
     const allChapters = [
       ...Object.values(JAVA_CHAPTERS).flat(),
       ...Object.values(PYTHON_CHAPTERS).flat(),
       ...Object.values(C_CHAPTERS).flat(),
     ];
-
     const found = allChapters.find(c => c.id === String(ch));
-    if (found) return found.title; // "2단원: 객체지향 핵심 4대 원칙" 같은 한글 타이틀
-    return String(ch); // 못 찾으면 원래 문자열 그대로 표시 (안전 폴백)
+    if (found) return found.title;
+    return String(ch);
   })();
 
   const centerColumn = (
@@ -722,7 +703,6 @@ export function Quiz({ t, params }) {
               🔒 오답노트 모드
             </span>
           )}
-          {/* ✅ chapter ID → 한글 타이틀로 표시 */}
           <span className="chapter-badge" style={{ fontFamily: "'Jua', sans-serif" }}>{chapterDisplayTitle}</span>
           <div className="user-tag">👤 {displayName} 님</div>
         </div>
