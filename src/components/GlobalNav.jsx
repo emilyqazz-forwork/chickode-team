@@ -311,7 +311,7 @@ export function GlobalNav({ onOpenSettings, onOpenAuth, t, params, setParams }) 
           <li><Link to="/" onClick={() => setMenuOpen(false)}>{t('nav_home')}</Link></li>
           <li><Link to="/" onClick={() => {setMenuOpen(false);setTimeout(() => {window.dispatchEvent(new Event('chickode:open_quiz_modal'));}, 100);}}>{t('btn_quiz')}</Link></li>
           <li><Link to="/note" onClick={() => setMenuOpen(false)}>{t('nav_note')}</Link></li>
-          <li><Link to="/pattern" onClick={() => setMenuOpen(false)}>{t('nav_pattern') || "패턴분석"}</Link></li>
+          <li><Link to="/pattern" onClick={() => setMenuOpen(false)}>{t('nav_pattern') || "학습 지표"}</Link></li>
           <li><Link to="/minigame" onClick={() => setMenuOpen(false)}>{t('nav_minigame')}</Link></li>
           <li>
             {/* 환경설정은 페이지 이동이 아니라 모달 팝업창을 여는 이벤트 핸들러(`onOpenSettings`) 배치 */}

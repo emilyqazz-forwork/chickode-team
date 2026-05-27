@@ -117,6 +117,6 @@ export function summarizeAttempts(attempts) {
     }
   }
 
-  // 가공된 통계 리포트 객체를 반환합니다. 패턴분석 UI(Pattern.jsx 등)에서 사용됩니다.
+  // 가공된 통계 리포트 객체를 반환합니다. 학습지표 UI(Pattern.jsx 등)에서 사용됩니다.
   return { total, correct, wrong, byChapter, byType };
 }
