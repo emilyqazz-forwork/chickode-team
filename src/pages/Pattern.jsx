@@ -128,7 +128,7 @@ export function Pattern({ t }) {
         >
           ❮ 뒤로가기
         </button>
-        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>CHICKODE: 패턴 분석</span>
+        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>CHICKODE: 학습 지표</span>
         <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', fontWeight: 'bold', border: '1px solid rgba(255,255,255,0.2)', padding: '4px 8px', borderRadius: '6px' }}>
           🔌 Supabase Cloud Live
         </span>
