@@ -9,7 +9,7 @@ export const translations = {
         nav_pattern: "학습지표",
         nav_minigame: "미니게임",
         main_title: "CHICKODE",
-        main_subtitle: "초보 개발자를 위한 자바 코딩도우미",
+        main_subtitle: "초보 개발자를 위한 코딩 학습 플랫폼",
         modal_lang_title: "언어 선택",
         modal_level_title: "난이도 선택",
         level_basic: "기초",
