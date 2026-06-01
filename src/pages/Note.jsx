@@ -424,6 +424,12 @@ export function Note({ t }) {
                           {item.unit_level}
                         </span>
                       )}
+                      {/* 코드 레벨 태그 - 추가 */}
+                      {item.code_level && (
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#f3e5f5', color: '#6a1b9a' }}>
+                          Lv.{item.code_level}
+                        </span>
+                      )}
                       {/* 틀린 횟수 태그 */}
                       <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', background: '#ffebee', color: '#c62828', fontWeight: 'bold' }}>
                         틀린 횟수 {item.wrongCount}회
@@ -498,7 +504,7 @@ export function Note({ t }) {
 
                     {/* 액션 버튼 */}
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <button onClick={() => navigate('/play', { state: {problemId: item.problem_id, chapter: item.chapterId, count: 1, ratio: 50, difficulty: item.unit_level || '기초', mustSolve: true }})}
+                      <button onClick={() => navigate('/play', { state: { problemId: item.problem_id, chapter: item.chapterId, count: 1, ratio: 50, difficulty: item.unit_level || '기초', mustSolve: true } })}
                         style={{ padding: '8px 16px', borderRadius: '8px', background: '#ff8f00', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
                         다시 풀기
                       </button>
