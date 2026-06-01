@@ -984,7 +984,7 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
 
 .bubble {
     display: inline-block;
-    min-width: 120px;
+    min-width: 6em;
     width: fit-content;
     height: auto; 
     max-width: 75%;
