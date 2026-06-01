@@ -491,7 +491,7 @@ function ChapterModal({ t, level, progress, totalProblems, onClose, onBack, onSe
                 <div style={{ position: 'relative', height: '8px', background: '#e0d7ce', borderRadius: '10px', overflow: 'hidden' }}>
                   <div style={{ width: `${progress[ch.id] || 0}%`, height: '100%', background: '#81c784', borderRadius: '10px' }}></div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#8d6e63', marginTop: '3px' }}>
+                <div style={{ fontSize: '11px', color: '#c62828', marginTop: '3px' }}>
                   {Math.round((progress[ch.id] || 0) / 100 * (totalProblems[ch.id] || 0))} / {totalProblems[ch.id] || 0} 문제
                 </div>
               </div>
