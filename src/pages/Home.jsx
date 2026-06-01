@@ -208,29 +208,58 @@ export function Home({ t, lang }) {
   }, [activeBg, prevBg]);
 
   useEffect(() => {
-    const attempts = getAttempts();
-    const totalByChapter = { 1: 13, 2: 13, 3: 13, 4: 13 };
-    const correctByChapter = {};
-    const seenProblems = {};
+  async function fetchProgress() {
+    try {
+      const { supabase } = await import('../supabaseClient');
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
 
-    for (const a of attempts) {
-      if (!a.isCorrect) continue;
-      const ch = a.chapter;
-      const pid = a.problemId || a.title;
-      if (!seenProblems[pid]) {
-        seenProblems[pid] = true;
-        correctByChapter[ch] = (correctByChapter[ch] || 0) + 1;
-      }
+      // 챕터별 전체 문제 수
+      const { data: problems } = await supabase
+        .from('problems')
+        .select('unit');
+
+      // 챕터별 유저 정답 문제 수 (중복 제거)
+      const { data: correct } = userId ? await supabase
+        .from('submissions')
+        .select('problem_id, unit')
+        .eq('user_id', userId)
+        .eq('is_correct', true) : { data: [] };
+
+      // 챕터별 전체 문제 수 집계
+      const totalMap = {};
+      (problems || []).forEach(p => {
+        const ch = p.unit?.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/)?.[0];
+        if (ch) totalMap[ch] = (totalMap[ch] || 0) + 1;
+      });
+
+      // 챕터별 정답 문제 수 집계 (중복 제거)
+      const correctMap = {};
+      const seen = new Set();
+      (correct || []).forEach(s => {
+        const key = `${s.unit}_${s.problem_id}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const ch = s.unit?.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/)?.[0];
+        if (ch) correctMap[ch] = (correctMap[ch] || 0) + 1;
+      });
+
+      // 비율 계산
+      const newProgress = {};
+      Object.keys(totalMap).forEach(ch => {
+        const total = totalMap[ch] || 1;
+        const done = correctMap[ch] || 0;
+        newProgress[ch] = Math.min(Math.round((done / total) * 100), 100);
+      });
+
+      setProgress(newProgress);
+    } catch (err) {
+      console.error('progress 로드 실패:', err);
     }
+  }
+  fetchProgress();
+}, []);
 
-    const newProgress = {};
-    [1, 2, 3, 4].forEach(ch => {
-      const total = totalByChapter[ch] || 1;
-      const correct = correctByChapter[ch] || 0;
-      newProgress[ch] = Math.min(Math.round((correct / total) * 100), 100);
-    });
-    setProgress(newProgress);
-  }, []);
 
   useEffect(() => {
     const fullText = t('main_subtitle');
