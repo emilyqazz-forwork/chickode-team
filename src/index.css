@@ -979,6 +979,9 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
     overflow: hidden; flex: 0 0 auto;
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+
+
 .bubble {
     display: inline-block;
     min-width: 80px;
@@ -991,7 +994,7 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
     line-height: 1.5;
     word-break: break-word;
     word-wrap: break-word;
-    white-space: pre-wrap;
+    white-space: pre-line;
     overflow-wrap: break-word;
 }
 
