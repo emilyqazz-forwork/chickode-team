@@ -254,6 +254,9 @@ export function Home({ t, lang }) {
         });
 
         setProgress(newProgress);
+        console.log('totalMap:', totalMap);
+        console.log('correctMap:', correctMap);
+        console.log('problems data:', problems);
         setTotalProblems(totalMap);
       } catch (err) {
         console.error('progress 로드 실패:', err);
