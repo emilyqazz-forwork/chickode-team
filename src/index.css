@@ -981,7 +981,6 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 .bubble {
-    /* ⭐ 핵심 수정: 높이를 고정하지 않고 내용만큼만 가지게 함 */
     display: inline-block;
     width: fit-content;
     height: auto; 
@@ -991,9 +990,9 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
     font-size: 0.95rem;
     line-height: 1.5;
     word-break: break-word;
-    word-break: keep-all;
     word-wrap: break-word;
     white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
 .bot-msg .bubble {
