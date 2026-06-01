@@ -82,7 +82,18 @@ export function useNoteData() {
           };
         });
 
-        setWrongItems(parsed);
+        // problem_id 기준 중복 제거 (최신 1개만 유지, wrongCount는 집계된 값 사용)
+        const seen = new Set();
+        const deduped = parsed.filter(item => {
+          if (seen.has(item.problem_id)) return false;
+          seen.add(item.problem_id);
+          return true;
+        });
+
+        setWrongItems(deduped);
+
+
+        
       } catch (err) {
         console.error('오답 데이터 로드 실패:', err);
       } finally {
