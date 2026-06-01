@@ -74,11 +74,11 @@ function HomeCoachmark({ t, step, onNext, onSkip }) {
   const pad = 10;
   const spotlightStyle = rect
     ? {
-        top: rect.top - pad,
-        left: rect.left - pad,
-        width: rect.width + pad * 2,
-        height: rect.height + pad * 2,
-      }
+      top: rect.top - pad,
+      left: rect.left - pad,
+      width: rect.width + pad * 2,
+      height: rect.height + pad * 2,
+    }
     : null;
 
   let tooltipTop = '50%';
@@ -156,6 +156,7 @@ export function Home({ t, lang }) {
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [progress, setProgress] = useState({});
+  const [totalProblems, setTotalProblems] = useState({});
   const [displayText, setDisplayText] = useState('');
   const [tutorialStep, setTutorialStep] = useState(null);
   const [activeBg, setActiveBg] = useState(0);
@@ -208,57 +209,58 @@ export function Home({ t, lang }) {
   }, [activeBg, prevBg]);
 
   useEffect(() => {
-  async function fetchProgress() {
-    try {
-      const { supabase } = await import('../supabaseClient');
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id;
+    async function fetchProgress() {
+      try {
+        const { supabase } = await import('../supabaseClient');
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id;
 
-      // 챕터별 전체 문제 수
-      const { data: problems } = await supabase
-        .from('problems')
-        .select('unit');
+        // 챕터별 전체 문제 수
+        const { data: problems } = await supabase
+          .from('problems')
+          .select('unit');
 
-      // 챕터별 유저 정답 문제 수 (중복 제거)
-      const { data: correct } = userId ? await supabase
-        .from('submissions')
-        .select('problem_id, unit')
-        .eq('user_id', userId)
-        .eq('is_correct', true) : { data: [] };
+        // 챕터별 유저 정답 문제 수 (중복 제거)
+        const { data: correct } = userId ? await supabase
+          .from('submissions')
+          .select('problem_id, unit')
+          .eq('user_id', userId)
+          .eq('is_correct', true) : { data: [] };
 
-      // 챕터별 전체 문제 수 집계
-      const totalMap = {};
-      (problems || []).forEach(p => {
-        const ch = p.unit?.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/)?.[0];
-        if (ch) totalMap[ch] = (totalMap[ch] || 0) + 1;
-      });
+        // 챕터별 전체 문제 수 집계
+        const totalMap = {};
+        (problems || []).forEach(p => {
+          const ch = p.unit?.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/)?.[0];
+          if (ch) totalMap[ch] = (totalMap[ch] || 0) + 1;
+        });
 
-      // 챕터별 정답 문제 수 집계 (중복 제거)
-      const correctMap = {};
-      const seen = new Set();
-      (correct || []).forEach(s => {
-        const key = `${s.unit}_${s.problem_id}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        const ch = s.unit?.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/)?.[0];
-        if (ch) correctMap[ch] = (correctMap[ch] || 0) + 1;
-      });
+        // 챕터별 정답 문제 수 집계 (중복 제거)
+        const correctMap = {};
+        const seen = new Set();
+        (correct || []).forEach(s => {
+          const key = `${s.unit}_${s.problem_id}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          const ch = s.unit?.match(/^(java|py|c)_(basic|mid|adv)_(c\d+)/)?.[0];
+          if (ch) correctMap[ch] = (correctMap[ch] || 0) + 1;
+        });
 
-      // 비율 계산
-      const newProgress = {};
-      Object.keys(totalMap).forEach(ch => {
-        const total = totalMap[ch] || 1;
-        const done = correctMap[ch] || 0;
-        newProgress[ch] = Math.min(Math.round((done / total) * 100), 100);
-      });
+        // 비율 계산
+        const newProgress = {};
+        Object.keys(totalMap).forEach(ch => {
+          const total = totalMap[ch] || 1;
+          const done = correctMap[ch] || 0;
+          newProgress[ch] = Math.min(Math.round((done / total) * 100), 100);
+        });
 
-      setProgress(newProgress);
-    } catch (err) {
-      console.error('progress 로드 실패:', err);
+        setProgress(newProgress);
+        setTotalProblems(totalMap);
+      } catch (err) {
+        console.error('progress 로드 실패:', err);
+      }
     }
-  }
-  fetchProgress();
-}, []);
+    fetchProgress();
+  }, []);
 
 
   useEffect(() => {
@@ -370,6 +372,7 @@ export function Home({ t, lang }) {
           t={t}
           level={selectedLevel}
           progress={progress}
+          totalProblems={totalProblems}
           onClose={closeAll}
           onBack={() => setStep('level')}
           onSelect={(chapter) => {
@@ -469,7 +472,7 @@ function LevelModal({ t, onClose, onBack, onSelect }) {
   );
 }
 
-function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
+function ChapterModal({ t, level, progress, totalProblems, onClose, onBack, onSelect }) {
   const chapters = JAVA_CHAPTERS[level] || [];
 
   return (
@@ -482,7 +485,12 @@ function ChapterModal({ t, level, progress, onClose, onBack, onSelect }) {
             <div key={ch.id} className="chapter-item" onClick={() => onSelect(ch.id)}>
               <span className="ch-title">{t(ch.title)}</span>
               <div className="progress-bar-container">
-                <div className="progress-bar" style={{ width: `${progress[ch.id] || 0}%` }}></div>
+                <div style={{ position: 'relative', height: '8px', background: '#e0d7ce', borderRadius: '10px', overflow: 'hidden' }}>
+                  <div style={{ width: `${progress[ch.id] || 0}%`, height: '100%', background: '#81c784', borderRadius: '10px' }}></div>
+                </div>
+                <div style={{ fontSize: '11px', color: '#8d6e63', marginTop: '3px' }}>
+                  {Math.round((progress[ch.id] || 0) / 100 * (totalProblems[ch.id] || 0))} / {totalProblems[ch.id] || 0} 문제
+                </div>
               </div>
             </div>
           ))}
