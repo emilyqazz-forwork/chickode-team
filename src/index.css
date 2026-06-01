@@ -258,11 +258,10 @@ body.dark-mode .global-menu-btn { color: #fdf6e3; }
 
 /* 프로그레스바 */
 .progress-bar-container {
-    background: #e0d7ce;
+    background: transparent;
     border-radius: 10px;
-    height: 8px;
     margin-top: 8px;
-    overflow: hidden;
+    overflow: visible;
 }
 .progress-bar {
     background: #8d6e63;
