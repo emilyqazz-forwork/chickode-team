@@ -329,8 +329,8 @@ export function Quiz({ t, params }) {
     let bufferSeconds = 0;
     const streamId = setInterval(async () => {
       bufferSeconds += 10;
-      const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
-      const userId = userPayload.id || null;
+      const { data: { session: behaviorSession } } = await supabase.auth.getSession();
+      const userId = behaviorSession?.user?.id || null;
 
       // ✅ session_id 제거
       const payload = {
@@ -553,8 +553,8 @@ export function Quiz({ t, params }) {
       : 4.00;
 
     try {
-      const userPayload = JSON.parse(localStorage.getItem('chickode_user') || '{}');
-      const userId = userPayload.id || null; 
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || null;
 
       // ✅ session_id 제거
       const { error } = await supabase.from('submissions').insert([{
