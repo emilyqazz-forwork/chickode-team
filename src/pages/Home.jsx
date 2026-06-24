@@ -6,7 +6,14 @@ import { getAttempts } from '../state/app-state';
 import { settingsButtonRef } from '../state/tutorial-refs';
 import { JAVA_CHAPTERS } from '../data/constants';
 
-const HOME_BACKGROUNDS = [
+const IS_MOBILE = typeof window !== 'undefined' && window.innerWidth <= 768;
+
+const HOME_BACKGROUNDS = IS_MOBILE ? [
+  '/images/bg1-mobile.png',
+  '/images/bg2-mobile.png',
+  '/images/bg3-mobile.png',
+  '/images/bg4-mobile.png',
+] : [
   '/images/bg1.png',
   '/images/bg2.png',
   '/images/bg3.png',
