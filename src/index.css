@@ -1991,3 +1991,41 @@ body, html {
 ::-webkit-scrollbar-thumb:hover {
     background: #5d4037;
 }
+
+
+/* ===== 홈 모바일 반응형 ===== */
+@media (max-width: 768px) {
+  .glow-title {
+    font-size: 2.8rem;
+  }
+
+  .subtitle {
+    font-size: 1.2rem;
+  }
+
+  .button-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 30px;
+    padding: 0 20px;
+  }
+
+  .btn-link img {
+    width: 110px;
+  }
+
+  .home-page .home-btn-label {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 400px) {
+  .glow-title {
+    font-size: 2.2rem;
+  }
+
+  .btn-link img {
+    width: 90px;
+  }
+}
