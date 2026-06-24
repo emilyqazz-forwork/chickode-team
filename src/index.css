@@ -1999,6 +1999,11 @@ body, html {
     font-size: 2.8rem;
   }
 
+  .main-container {
+    background-position: 70% center;
+  }
+  
+
   .subtitle {
     font-size: 1.2rem;
   }
