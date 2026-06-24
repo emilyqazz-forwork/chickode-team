@@ -613,6 +613,56 @@ export default function BugGame({ onBack }) {
           cursor: 'pointer',
         }}
       />
+      {/* 모바일 방향 버튼 */}
+<div style={{
+  position: 'absolute',
+  bottom: 24,
+  left: 0,
+  right: 0,
+  zIndex: 560,
+  display: 'flex',
+  justifyContent: 'space-between',
+  padding: '0 24px',
+  pointerEvents: 'none',
+}}>
+  <button
+    type="button"
+    onPointerDown={() => { stateRef.current.keys.left = true; }}
+    onPointerUp={() => { stateRef.current.keys.left = false; }}
+    onPointerLeave={() => { stateRef.current.keys.left = false; }}
+    style={{
+      width: 72, height: 72,
+      borderRadius: '50%',
+      border: '3px solid rgba(255,255,255,0.6)',
+      background: 'rgba(0,0,0,0.35)',
+      color: '#fff',
+      fontSize: 28,
+      fontWeight: 900,
+      cursor: 'pointer',
+      pointerEvents: 'auto',
+      touchAction: 'none',
+    }}
+  >←</button>
+  <button
+    type="button"
+    onPointerDown={() => { stateRef.current.keys.right = true; }}
+    onPointerUp={() => { stateRef.current.keys.right = false; }}
+    onPointerLeave={() => { stateRef.current.keys.right = false; }}
+    style={{
+      width: 72, height: 72,
+      borderRadius: '50%',
+      border: '3px solid rgba(255,255,255,0.6)',
+      background: 'rgba(0,0,0,0.35)',
+      color: '#fff',
+      fontSize: 28,
+      fontWeight: 900,
+      cursor: 'pointer',
+      pointerEvents: 'auto',
+      touchAction: 'none',
+    }}
+  >→</button>
+</div>
+
       <button
         type="button"
         onClick={() => (onBack ? onBack() : navigate('/minigame'))}
