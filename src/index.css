@@ -2002,10 +2002,15 @@ body, html {
   .main-container {
     background-position: 70% center;
   }
-  
+
+  .header {
+    padding-top: 60px;
+  }
+
 
   .subtitle {
     font-size: 1.2rem;
+     margin-top: 20px;
   }
 
   .button-wrapper {
